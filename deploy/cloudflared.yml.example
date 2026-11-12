@@ -1,0 +1,12 @@
+# /etc/cloudflared/config.yml -- Cloudflare Tunnel to the app.
+# With a tunnel the VM needs no open inbound port at all, and nobody can reach
+# the app except through Cloudflare (so CF-Connecting-IP can be trusted).
+#   cloudflared tunnel login
+#   cloudflared tunnel create roytalk
+#   cloudflared tunnel route dns roytalk roytalk.com
+tunnel: roytalk
+credentials-file: /etc/cloudflared/roytalk.json
+ingress:
+  - hostname: roytalk.com
+    service: http://127.0.0.1:3000
+  - service: http_status:404

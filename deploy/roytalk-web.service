@@ -1,0 +1,25 @@
+[Unit]
+Description=roytalk web (GNU Artanis)
+After=network-online.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=roytalk
+WorkingDirectory=/srv/roytalk
+Environment=LANG=C.UTF-8
+Environment=GUILE_AUTO_COMPILE=1
+ExecStart=/usr/bin/art work
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/roytalk /var/lib/roytalk-guile-cache
+Environment=XDG_CACHE_HOME=/var/lib/roytalk-guile-cache
+StateDirectory=roytalk-guile-cache
+MemoryMax=600M
+
+[Install]
+WantedBy=multi-user.target

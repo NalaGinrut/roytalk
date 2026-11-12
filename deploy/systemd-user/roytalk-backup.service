@@ -1,0 +1,22 @@
+# ~/.config/systemd/user/roytalk-backup.service
+# Dumps the roytalk database to <app>/prv/asset-private/roytalk/backup/*.sql.bz2
+# Run by roytalk-backup.timer; by hand: systemctl --user start roytalk-backup
+#
+# The user running it must be able to read <app>/conf/artanis.conf (the DB
+# settings) and write to <app>/prv/asset-private/.
+
+[Unit]
+Description=roytalk database backup to prv/asset-private/roytalk/backup
+# Back up into the R2 mount when it is there (see roytalk-asset-mount.service).
+Wants=roytalk-asset-mount.service
+After=roytalk-asset-mount.service network-online.target
+
+[Service]
+Type=oneshot
+# Where the app is installed.
+Environment=ROYTALK_DIR=/srv/roytalk
+# Delete dumps older than this many days; 0 keeps them all.
+Environment=KEEP_DAYS=0
+ExecStart=/bin/sh -c 'exec "$ROYTALK_DIR/tools/backup.sh"'
+Nice=10
+IOSchedulingClass=idle

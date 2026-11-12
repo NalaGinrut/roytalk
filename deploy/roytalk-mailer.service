@@ -1,0 +1,20 @@
+[Unit]
+Description=roytalk mailer (sends the outbox)
+After=network-online.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=roytalk
+WorkingDirectory=/srv/roytalk
+Environment=LANG=C.UTF-8
+Environment=XDG_CACHE_HOME=/var/lib/roytalk-guile-cache
+StateDirectory=roytalk-guile-cache
+ExecStart=/usr/bin/guile -L lib tools/mailer.scm
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+MemoryMax=150M
+
+[Install]
+WantedBy=multi-user.target

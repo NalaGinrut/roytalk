@@ -1,0 +1,31 @@
+# /etc/msmtprc (chmod 640, group roytalk) or ~roytalk/.msmtprc (chmod 600).
+# One account per mail stream. The names must match the -a arguments of
+# sendmail-command-account / sendmail-command-letter in prv/settings.scm.
+#
+# With Amazon SES, SMTP credentials belong to the region, not to a domain:
+# if both domains are verified in the same region, both accounts can use the
+# same host, user and password. Only "from" differs.
+defaults
+auth           on
+tls            on
+tls_starttls   on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+logfile        ~/.msmtp.log
+
+# Sign-in links, subscription confirmation, welcome mail
+account        notify
+host           email-smtp.REGION.amazonaws.com
+port           587
+from           no-reply@notify.example.com
+user           SMTP_USERNAME
+password       SMTP_PASSWORD
+
+# The letter (newsletter)
+account        newsletter
+host           email-smtp.REGION.amazonaws.com
+port           587
+from           letter@newsletter.example.com
+user           SMTP_USERNAME
+password       SMTP_PASSWORD
+
+account default : notify

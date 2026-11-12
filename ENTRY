@@ -1,0 +1,19 @@
+;; This an Artanis ENTRY file, don't remove it!
+
+ (use-modules (artanis artanis)
+              ;; Put modules you want to be imported here
+              ;; only for this file, not controllers/views
+
+              (artanis utils)
+              (artanis mime))
+ ;; Put whatever you want to be called before server initilization here
+
+ (setlocale LC_ALL "C.UTF-8")
+ ;; GNU Artanis' MIME table (artanis/mime.scm, built by init-mime) has png and
+ ;; jpeg but no webp, so the static route would send the Open Graph card as
+ ;; application/octet-stream. mime-guess reads this private table at request
+ ;; time; adding the type here avoids touching the installed Artanis sources.
+ (hash-set! (@@ (artanis mime) *mime-types-table*) 'webp 'image/webp)
+ (init-server #:statics '(png gif jpg jpeg webp ico svg js css woff woff2))
+ (add-to-load-path (string-append (current-toplevel) "/lib"))
+ ;; Put whatever you want to be called before server running here

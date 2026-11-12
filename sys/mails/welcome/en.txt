@@ -1,0 +1,10 @@
+You are on the list
+
+Thank you. When a new piece is published, you will get its opening by email with a link to the rest. There is no schedule: a letter comes when there is something worth reading.
+
+Every essay is open to questions. Select any sentence on the site and ask what you doubt about it. There is no applause button, only questions.
+
+Everything here is written by a person. The principles say what that means, and what is done with what you write:
+{{principles_url}}
+
+{{author_name}}

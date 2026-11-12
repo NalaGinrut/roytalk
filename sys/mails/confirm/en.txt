@@ -1,0 +1,7 @@
+Please confirm
+
+Someone, hopefully you, asked to receive new writing from {{site_name}} by email at this address.
+
+Nothing will be sent until you confirm.
+
+If it was not you, ignore this message and you will not hear from us again.

@@ -1,0 +1,15 @@
+# ~/.config/systemd/user/roytalk-backup.timer
+#   systemctl --user enable --now roytalk-backup.timer
+#   systemctl --user list-timers
+
+[Unit]
+Description=Nightly roytalk database backup
+
+[Timer]
+OnCalendar=*-*-* 03:17:00 UTC
+RandomizedDelaySec=15m
+# Run at the next start if the machine was off at the scheduled time.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
