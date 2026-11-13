@@ -195,6 +195,10 @@ app() {
   fi
   find "$APP_DIR" -path "$APP_DIR/prv/asset-private" -prune -o -exec chown "$APP_USER:$APP_USER" {} +
   chmod 700 "$APP_DIR/prv"
+  # The mount is made by the app user, so it must own the mountpoint. Do this
+  # only when nothing is mounted: chowning a mountpoint would hit the R2 root.
+  mountpoint -q "$APP_DIR/prv/asset-private" \
+    || chown "$APP_USER:$APP_USER" "$APP_DIR/prv/asset-private"
   PGPASSWORD="$DB_PASS" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -f "$APP_DIR/db/schema.sql"
 }
 
@@ -203,12 +207,23 @@ services() {
   say "Services"
   # The units in deploy/ are written for /var/www/roytalk; rewrite the path when
   # the app lives elsewhere, so a redeploy doesn't point them back there.
-  local unit
+  local unit install_rclone=
   for unit in roytalk-web roytalk-mailer roytalk-digest; do
     sed "s#/var/www/roytalk#$APP_DIR#g" "$APP_SRC/deploy/$unit.service" \
       > "/etc/systemd/system/$unit.service"
   done
   cp "$APP_SRC/deploy/roytalk-digest.timer" /etc/systemd/system/
+  # The R2 mount is optional: install it only once the app user has an rclone
+  # config, and never restart it here, so a redeploy cannot disturb a live
+  # mount. Until then prv/asset-private/ stays a plain directory (local dumps).
+  if [ -f "$APP_DIR/.config/rclone/rclone.conf" ]; then
+    sed -e "s#/var/www/roytalk#$APP_DIR#g" \
+        -e "s#^User=roytalk\$#User=$APP_USER#" \
+        -e "s#^Group=roytalk\$#Group=$APP_USER#" \
+        "$APP_SRC/deploy/rclone-roytalk-assets-private.service" \
+        > /etc/systemd/system/rclone-roytalk-assets-private.service
+    install_rclone=1
+  fi
   systemctl daemon-reload
   # Guile inlines small procedures across modules into each caller's compiled
   # .go, and only recompiles a file when its own source changes. After a
@@ -218,6 +233,9 @@ services() {
   systemctl stop roytalk-web roytalk-mailer 2>/dev/null || true
   rm -rf /var/lib/roytalk-guile-cache/* "$APP_DIR/tmp/cache"
   systemctl enable roytalk-web roytalk-mailer roytalk-digest.timer
+  if [ -n "$install_rclone" ]; then
+    systemctl enable rclone-roytalk-assets-private
+  fi
   # Only the timer starts: a digest goes out on its schedule, never on deploy.
   systemctl restart roytalk-web roytalk-mailer roytalk-digest.timer
 }
@@ -236,4 +254,5 @@ echo "Preview it with:"
 echo "  cd $APP_DIR && sudo -u $APP_USER env LANG=C.UTF-8 \\"
 echo "    XDG_CACHE_HOME=/var/lib/roytalk-guile-cache guile -L lib tools/digest.scm --dry-run"
 echo "!! Backups are not scheduled yet: install the user units in deploy/systemd-user/"
-echo "   (backup timer and, optionally, the rclone mount). See README.md, Backups."
+echo "   (backup timer). The R2 mount is the system unit installed above when"
+echo "   $APP_DIR/.config/rclone/rclone.conf exists. See README.md, Backups."

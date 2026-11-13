@@ -7,9 +7,9 @@
 
 [Unit]
 Description=roytalk database backup to prv/asset-private/roytalk/backup
-# Back up into the R2 mount when it is there (see roytalk-asset-mount.service).
-Wants=roytalk-asset-mount.service
-After=roytalk-asset-mount.service network-online.target
+# The R2 mount, when installed, is the system unit
+# rclone-roytalk-assets-private.service; without it dumps stay on local disk.
+After=network-online.target
 
 [Service]
 Type=oneshot

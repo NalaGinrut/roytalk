@@ -345,14 +345,13 @@ old ones; the default keeps everything.
 the script only does file operations. Until it is mounted, dumps stay on the
 VM's disk.
 
-The units in `deploy/systemd-user/` run under a normal user (`systemctl
+The backup units in `deploy/systemd-user/` run under a normal user (`systemctl
 --user`):
 
 | Unit | What |
 |---|---|
 | `roytalk-backup.timer` | runs `roytalk-backup.service` every night at 03:17 UTC |
-| `roytalk-backup.service` | runs `tools/backup.sh`, after the mount if there is one |
-| `roytalk-asset-mount.service` | optional: the rclone mount of `prv/asset-private` |
+| `roytalk-backup.service` | runs `tools/backup.sh` |
 
 The user needs to read `conf/artanis.conf` and write `prv/asset-private/`.
 `setup-server.sh` gives `/var/www/roytalk` to the `roytalk` user and makes `prv/`
@@ -360,20 +359,44 @@ private (700), so the simplest is to install the units for `roytalk`:
 
 ```sh
 sudo loginctl enable-linger roytalk          # user units run without a login
-sudo -u roytalk mkdir -p ~roytalk/.config/systemd/user ~roytalk/.config/rclone
+sudo -u roytalk mkdir -p ~roytalk/.config/systemd/user
 sudo install -o roytalk -g roytalk -m 644 deploy/systemd-user/* ~roytalk/.config/systemd/user/
-sudo -u roytalk rclone config                # create the R2 remote, e.g. "r2"
-# edit RCLONE_REMOTE (and ROYTALK_DIR if not /var/www/roytalk) in the units, then:
 sudo systemctl start user@$(id -u roytalk)
 sudo -u roytalk XDG_RUNTIME_DIR=/run/user/$(id -u roytalk) \
-  systemctl --user enable --now roytalk-asset-mount roytalk-backup.timer
+  systemctl --user daemon-reload
+sudo -u roytalk XDG_RUNTIME_DIR=/run/user/$(id -u roytalk) \
+  systemctl --user enable --now roytalk-backup.timer
 ```
 
 `roytalk`'s home is `/var/www/roytalk`, so these land in `/var/www/roytalk/.config/`;
 redeploys leave dot directories alone and nothing outside `pub/` is served.
+
+#### R2 mount
+
+`deploy/rclone-roytalk-assets-private.service` is a **system** unit, but it
+runs as the app user: a FUSE mount made by root is not accessible to other
+users, and both the app and the backup (running as `roytalk`) write into it.
+Give `roytalk` an rclone config first:
+
+```sh
+sudo install -d -o roytalk -g roytalk /var/www/roytalk/.config/rclone
+sudo -u roytalk rclone config               # create the remote, e.g. roytalk-assets-private
+```
+
+Then rerun `sudo deploy/setup-server.sh --from services`: when
+`$APP_DIR/.config/rclone/rclone.conf` exists, the services stage installs and
+enables the unit (rewriting the paths, `User=` and `RCLONE_CONFIG` for
+`$APP_DIR`) and never restarts a live mount. Start it once by hand:
+
+```sh
+sudo systemctl start rclone-roytalk-assets-private
+mount | grep asset-private
+```
+
 Under another user, give that user read access to `conf/` and write access to
-`prv/asset-private/` first. Check with `systemctl --user list-timers` and
-`systemctl --user start roytalk-backup` (then `journalctl --user -u roytalk-backup`).
+`prv/asset-private/` first. Check backups as the app user with
+`systemctl --user list-timers` and `systemctl --user start roytalk-backup`;
+read the log as root with `journalctl --user-unit=roytalk-backup`.
 
 To rebuild on a new VM: `setup-server.sh`, mount `prv/asset-private/`, then
 

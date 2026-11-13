@@ -6,7 +6,12 @@ AssertPathIsDirectory=/var/www/roytalk/prv/asset-private
 
 [Service]
 Type=notify
-Environment=RCLONE_CONFIG=%h/.config/rclone/rclone.conf
+# Run as the app user. A FUSE mount made by root is not accessible to other
+# users unless allow_other is set, and both the web app and the backup (which
+# also run as roytalk) write into this mount.
+User=roytalk
+Group=roytalk
+Environment=RCLONE_CONFIG=/var/www/roytalk/.config/rclone/rclone.conf
 # R2 does not implement CreateBucket (the bucket must already exist) and
 # answers 501 to HEAD with ?versionId=, which rclone issues after every
 # upload to read the new object's metadata back. Without these two flags
@@ -15,11 +20,12 @@ Environment=RCLONE_CONFIG=%h/.config/rclone/rclone.conf
 ExecStart=/usr/bin/rclone mount roytalk-assets-private:roytalk /var/www/roytalk/prv/asset-private \
   --vfs-cache-mode writes \
   --dir-cache-time 10s \
+  --umask 077 \
   --s3-no-check-bucket \
   --s3-no-head
-ExecStop=/bin/fusermount -u /var/www/roytalk/prv/asset-private
+ExecStop=/bin/fusermount3 -u /var/www/roytalk/prv/asset-private
 Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
