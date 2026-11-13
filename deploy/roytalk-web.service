@@ -8,7 +8,7 @@ User=roytalk
 WorkingDirectory=/var/www/roytalk
 Environment=LANG=C.UTF-8
 Environment=GUILE_AUTO_COMPILE=1
-ExecStart=/usr/bin/art work
+ExecStart=/usr/bin/art work --refresh
 Restart=always
 RestartSec=3
 # Hardening
