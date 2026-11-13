@@ -1,6 +1,6 @@
 <footer class="footer">
 <div class="wrap">
-<span class="colophon">Served as plain HTML by <a href="https://artanis.dev">GNU Artanis</a>. No trackers, no passwords. We keep a sign-in and a handle, nothing else.</span>
+<span class="colophon">Served as SSR HTML by <a href="https://artanis.dev">GNU Artanis</a>. No trackers, no passwords. We keep a sign-in and a handle, nothing else.</span>
 <nav aria-label="Footer">
 <a href="/principles">Principles</a>
 <a href="/search">Search</a>

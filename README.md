@@ -30,7 +30,7 @@ cp prv/settings.example.scm prv/settings.scm   # set secret, author-emails,
                                                # base-url "http://127.0.0.1:3000"
 # set db.passwd in conf/artanis.conf, then:
 tools/init-db.sh                               # asks before changing the password
-art work                          # http://127.0.0.1:3000
+art work --refresh                # http://127.0.0.1:3000
 guile -L lib tools/mailer.scm                  # another shell, with mail-mode send
 guile -L lib tools/digest.scm --dry-run        # preview the monthly letter
 ```
@@ -354,7 +354,8 @@ Things learned building this, kept here for whoever works on it next:
 - Guile 3 inlines small procedures across modules into the caller's compiled
   `.go`. Change a library procedure without touching its callers and the
   cached callers keep running the old code. `setup-server.sh` empties the compile
-  cache on every deploy; do the same locally (`~/.cache/guile`) when in doubt.
+  cache on every deploy; locally, start with `art work --refresh` or clear
+  `~/.cache/guile` when in doubt.
 
 ## Licence
 
