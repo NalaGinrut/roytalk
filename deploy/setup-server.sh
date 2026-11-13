@@ -21,7 +21,7 @@
 # services is useful to "just redo services". With no flag every stage runs.
 # Safe to run again: every stage checks what is already there.
 #
-# APP_DIR is where the app is installed and defaults to /srv/roytalk. The
+# APP_DIR is where the app is installed and defaults to /var/www/roytalk. The
 # systemd units are rewritten from the ones in deploy/ with that path, so a
 # different install location needs no hand-editing:
 #
@@ -29,7 +29,7 @@
 set -euo pipefail
 
 APP_SRC="$(cd "$(dirname "$0")/.." && pwd)"
-APP_DIR=${APP_DIR:-/srv/roytalk}
+APP_DIR=${APP_DIR:-/var/www/roytalk}
 APP_USER=${APP_USER:-roytalk}
 DB_NAME=${DB_NAME:-roytalk}
 DB_USER=${DB_USER:-roytalk}
@@ -51,7 +51,7 @@ Stages, in order:
 No flag runs every stage. --from START runs START and everything after it.
 --list prints the stage names.
 
-Environment: APP_DIR (default /srv/roytalk), APP_USER, DB_NAME, DB_USER, SRC.
+Environment: APP_DIR (default /var/www/roytalk), APP_USER, DB_NAME, DB_USER, SRC.
 EOF
 }
 
@@ -201,11 +201,11 @@ app() {
 # ---------------------------------------------------------------- services
 services() {
   say "Services"
-  # The units in deploy/ are written for /srv/roytalk; rewrite the path when
+  # The units in deploy/ are written for /var/www/roytalk; rewrite the path when
   # the app lives elsewhere, so a redeploy doesn't point them back there.
   local unit
   for unit in roytalk-web roytalk-mailer roytalk-digest; do
-    sed "s#/srv/roytalk#$APP_DIR#g" "$APP_SRC/deploy/$unit.service" \
+    sed "s#/var/www/roytalk#$APP_DIR#g" "$APP_SRC/deploy/$unit.service" \
       > "/etc/systemd/system/$unit.service"
   done
   cp "$APP_SRC/deploy/roytalk-digest.timer" /etc/systemd/system/

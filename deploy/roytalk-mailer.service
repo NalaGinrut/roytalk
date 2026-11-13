@@ -5,7 +5,7 @@ Requires=postgresql.service
 
 [Service]
 User=roytalk
-WorkingDirectory=/srv/roytalk
+WorkingDirectory=/var/www/roytalk
 Environment=LANG=C.UTF-8
 Environment=XDG_CACHE_HOME=/var/lib/roytalk-guile-cache
 StateDirectory=roytalk-guile-cache

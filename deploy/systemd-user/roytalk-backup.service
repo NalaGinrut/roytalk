@@ -14,7 +14,7 @@ After=roytalk-asset-mount.service network-online.target
 [Service]
 Type=oneshot
 # Where the app is installed.
-Environment=ROYTALK_DIR=/srv/roytalk
+Environment=ROYTALK_DIR=/var/www/roytalk
 # Delete dumps older than this many days; 0 keeps them all.
 Environment=KEEP_DAYS=0
 ExecStart=/bin/sh -c 'exec "$ROYTALK_DIR/tools/backup.sh"'

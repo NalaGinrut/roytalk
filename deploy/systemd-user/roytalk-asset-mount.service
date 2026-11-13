@@ -13,7 +13,7 @@ After=network-online.target
 
 [Service]
 Type=notify
-Environment=ROYTALK_DIR=/srv/roytalk
+Environment=ROYTALK_DIR=/var/www/roytalk
 Environment=RCLONE_REMOTE=r2:private
 ExecStartPre=/bin/mkdir -p ${ROYTALK_DIR}/prv/asset-private
 ExecStart=/usr/bin/rclone mount ${RCLONE_REMOTE} ${ROYTALK_DIR}/prv/asset-private \

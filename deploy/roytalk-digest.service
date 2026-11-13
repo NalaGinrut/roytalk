@@ -6,7 +6,7 @@ Requires=postgresql.service
 [Service]
 Type=oneshot
 User=roytalk
-WorkingDirectory=/srv/roytalk
+WorkingDirectory=/var/www/roytalk
 Environment=LANG=C.UTF-8
 Environment=GUILE_AUTO_COMPILE=1
 Environment=XDG_CACHE_HOME=/var/lib/roytalk-guile-cache

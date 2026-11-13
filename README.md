@@ -148,7 +148,7 @@ server's local time).
 #### 4. Preview without writing or sending
 
 ```sh
-cd /srv/roytalk
+cd /var/www/roytalk
 sudo -u roytalk env LANG=C.UTF-8 XDG_CACHE_HOME=/var/lib/roytalk-guile-cache \
   guile -L lib tools/digest.scm --dry-run
 ```
@@ -242,7 +242,7 @@ A piece is only included when `status = 'published'`, `emailed_at IS NULL`,
 and `published_at` is after the previous digest's `period_end`.
 
 Links show `127.0.0.1`: `host.name` is missing from `conf/artanis.conf`, or the
-command was not run from `/srv/roytalk`. Fix `conf/artanis.conf` and rerun the
+command was not run from `/var/www/roytalk`. Fix `conf/artanis.conf` and rerun the
 preview.
 
 Old behaviour after changing library code: clear the cache and restart:
@@ -264,7 +264,7 @@ sudo deploy/setup-server.sh
 ```
 
 It adds swap, builds the dependencies, tunes PostgreSQL for 1 GB, installs the
-app to `/srv/roytalk`, and starts two systemd services (`roytalk-web` and
+app to `/var/www/roytalk`, and starts two systemd services (`roytalk-web` and
 `roytalk-mailer`) plus `roytalk-digest.timer` for the monthly letter. Backups
 are user units, installed by hand (below). Running it again redeploys; it never
 touches `prv/asset-private/`.
@@ -290,7 +290,7 @@ sudo deploy/setup-server.sh --from services  # just the systemd units
 
 `--from` runs the named stage and everything after it, so `user` is the first
 stage to use once the dependencies are built, and `services` the last one to
-redo on its own. `APP_DIR` (default `/srv/roytalk`) and `APP_USER`, `DB_NAME`,
+redo on its own. `APP_DIR` (default `/var/www/roytalk`) and `APP_USER`, `DB_NAME`,
 `DB_USER`, `SRC` can be overridden in the environment. The units are rewritten
 from `deploy/` with `$APP_DIR` substituted, so another location works without
 hand-editing:
@@ -355,7 +355,7 @@ The units in `deploy/systemd-user/` run under a normal user (`systemctl
 | `roytalk-asset-mount.service` | optional: the rclone mount of `prv/asset-private` |
 
 The user needs to read `conf/artanis.conf` and write `prv/asset-private/`.
-`setup-server.sh` gives `/srv/roytalk` to the `roytalk` user and makes `prv/`
+`setup-server.sh` gives `/var/www/roytalk` to the `roytalk` user and makes `prv/`
 private (700), so the simplest is to install the units for `roytalk`:
 
 ```sh
@@ -363,13 +363,13 @@ sudo loginctl enable-linger roytalk          # user units run without a login
 sudo -u roytalk mkdir -p ~roytalk/.config/systemd/user ~roytalk/.config/rclone
 sudo install -o roytalk -g roytalk -m 644 deploy/systemd-user/* ~roytalk/.config/systemd/user/
 sudo -u roytalk rclone config                # create the R2 remote, e.g. "r2"
-# edit RCLONE_REMOTE (and ROYTALK_DIR if not /srv/roytalk) in the units, then:
+# edit RCLONE_REMOTE (and ROYTALK_DIR if not /var/www/roytalk) in the units, then:
 sudo systemctl start user@$(id -u roytalk)
 sudo -u roytalk XDG_RUNTIME_DIR=/run/user/$(id -u roytalk) \
   systemctl --user enable --now roytalk-asset-mount roytalk-backup.timer
 ```
 
-`roytalk`'s home is `/srv/roytalk`, so these land in `/srv/roytalk/.config/`;
+`roytalk`'s home is `/var/www/roytalk`, so these land in `/var/www/roytalk/.config/`;
 redeploys leave dot directories alone and nothing outside `pub/` is served.
 Under another user, give that user read access to `conf/` and write access to
 `prv/asset-private/` first. Check with `systemctl --user list-timers` and
@@ -379,7 +379,7 @@ To rebuild on a new VM: `setup-server.sh`, mount `prv/asset-private/`, then
 
 ```sh
 sudo systemctl stop roytalk-web roytalk-mailer
-sudo -u roytalk /srv/roytalk/tools/restore.sh          # newest dump
+sudo -u roytalk /var/www/roytalk/tools/restore.sh          # newest dump
 sudo systemctl start roytalk-web roytalk-mailer
 ```
 
