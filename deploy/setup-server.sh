@@ -41,6 +41,42 @@ STAGES=(swap packages deps user db app services)
 say() { printf '\n== %s\n' "$*"; }
 die() { echo "$*" >&2; exit 1; }
 
+# Write a unit file from stdin. If the destination already exists with
+# different content, warn (yellow) and ask before replacing it, so a unit
+# edited by hand on the server is not silently lost. Answering anything but
+# y keeps the old file. Without a terminal (unattended run) it overwrites,
+# as before.
+install_unit() {
+  local dst=$1 tmp answer= keep=
+  tmp=$(mktemp) || die "mktemp failed"
+  cat > "$tmp" || { rm -f "$tmp"; die "failed to read unit for $dst"; }
+
+  if [ -f "$dst" ] && ! cmp -s "$tmp" "$dst"; then
+    if (exec </dev/tty) 2>/dev/null; then
+      if [ -t 2 ]; then
+        printf '\n\033[1;33m!! %s exists and differs from deploy/%s\033[0m\n' \
+          "$dst" "${dst##*/}" >&2
+      else
+        printf '\n!! %s exists and differs from deploy/%s\n' \
+          "$dst" "${dst##*/}" >&2
+      fi
+      printf '   Overwrite it? [y/N] ' >&2
+      read -r answer < /dev/tty || answer=n
+      case "$answer" in
+        y|Y|yes|YES) ;;
+        *) keep=1 ;;
+      esac
+    fi
+  fi
+
+  if [ -n "$keep" ]; then
+    echo "   kept $dst"
+  else
+    install -m 644 "$tmp" "$dst"
+  fi
+  rm -f "$tmp"
+}
+
 usage() {
   cat <<EOF
 Usage: $0 [--from STAGE] [--list]
@@ -210,9 +246,10 @@ services() {
   local unit install_rclone=
   for unit in roytalk-web roytalk-mailer roytalk-digest; do
     sed "s#/var/www/roytalk#$APP_DIR#g" "$APP_SRC/deploy/$unit.service" \
-      > "/etc/systemd/system/$unit.service"
+      | install_unit "/etc/systemd/system/$unit.service"
   done
-  cp "$APP_SRC/deploy/roytalk-digest.timer" /etc/systemd/system/
+  install_unit /etc/systemd/system/roytalk-digest.timer \
+    < "$APP_SRC/deploy/roytalk-digest.timer"
   # The R2 mount is optional: install it only once the app user has an rclone
   # config, and never restart it here, so a redeploy cannot disturb a live
   # mount. Until then prv/asset-private/ stays a plain directory (local dumps).
@@ -221,7 +258,7 @@ services() {
         -e "s#^User=roytalk\$#User=$APP_USER#" \
         -e "s#^Group=roytalk\$#Group=$APP_USER#" \
         "$APP_SRC/deploy/rclone-roytalk-assets-private.service" \
-        > /etc/systemd/system/rclone-roytalk-assets-private.service
+      | install_unit /etc/systemd/system/rclone-roytalk-assets-private.service
     install_rclone=1
   fi
   systemctl daemon-reload

@@ -267,7 +267,9 @@ It adds swap, builds the dependencies, tunes PostgreSQL for 1 GB, installs the
 app to `/var/www/roytalk`, and starts two systemd services (`roytalk-web` and
 `roytalk-mailer`) plus `roytalk-digest.timer` for the monthly letter. Backups
 are user units, installed by hand (below). Running it again redeploys; it never
-touches `prv/asset-private/`.
+touches `prv/asset-private/`. If a unit in `/etc/systemd/system/` differs from
+the copy in `deploy/` (say, it was edited on the server), the services stage
+shows it in yellow and asks before overwriting; the default answer keeps it.
 
 The work is split into stages, so a redeploy does not have to rebuild
 everything (`sudo deploy/setup-server.sh --list` prints them):
