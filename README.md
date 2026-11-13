@@ -269,8 +269,64 @@ app to `/srv/roytalk`, and starts two systemd services (`roytalk-web` and
 are user units, installed by hand (below). Running it again redeploys; it never
 touches `prv/asset-private/`.
 
+The work is split into stages, so a redeploy does not have to rebuild
+everything (`sudo deploy/setup-server.sh --list` prints them):
+
+| Stage | What |
+|---|---|
+| `swap` | create `/swapfile` |
+| `packages` | `apt-get install` the runtime packages |
+| `deps` | build guile-dbi, guile-curl, guile-redis and GNU Artanis |
+| `user` | create the service account and its home (`$APP_DIR`) |
+| `db` | size PostgreSQL, create the role, database and `citext` |
+| `app` | copy the app to `$APP_DIR`, write `prv/settings.scm`, load the schema |
+| `services` | install and (re)start the systemd units |
+
+```sh
+sudo deploy/setup-server.sh --from user      # user, db, app, services
+sudo deploy/setup-server.sh --from db        # db, app, services
+sudo deploy/setup-server.sh --from services  # just the systemd units
+```
+
+`--from` runs the named stage and everything after it, so `user` is the first
+stage to use once the dependencies are built, and `services` the last one to
+redo on its own. `APP_DIR` (default `/srv/roytalk`) and `APP_USER`, `DB_NAME`,
+`DB_USER`, `SRC` can be overridden in the environment. The units are rewritten
+from `deploy/` with `$APP_DIR` substituted, so another location works without
+hand-editing:
+
+```sh
+sudo APP_DIR=/var/www/roytalk deploy/setup-server.sh --from services
+```
+
+### nginx
+
+The app speaks plain HTTP on `127.0.0.1:3000`, so nginx fronts it.
+`deploy/nginx-roytalk.conf` listens on `127.0.0.1:8080`, proxies to the app,
+hides the upstream `Server` header (GNU Artanis) and nginx's version, and
+rate-limits per client IP — the client address comes from Cloudflare's
+`CF-Connecting-IP`, which is only trusted on loopback, i.e. from cloudflared.
+
+```sh
+sudo apt-get install -y nginx
+sudo install -m 644 deploy/nginx-roytalk.conf /etc/nginx/sites-available/roytalk.conf
+sudo ln -sf /etc/nginx/sites-available/roytalk.conf /etc/nginx/sites-enabled/roytalk.conf
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Then point the tunnel at it (`service: http://127.0.0.1:8080`, see
+`deploy/cloudflared.yml.example`). To show the upstream banner instead of
+hiding it, remove `proxy_hide_header Server;`; to send `Server: roytalk`, install
+`nginx-extras` and uncomment the `more_set_headers` line.
+
+`deploy/tune-sysctl.sh` writes and applies `/etc/sysctl.d/90-roytalk.conf`:
+accept-queue and SYN backlog, keep-alive/TIME_WAIT handling, socket buffers,
+flood protection, file descriptors and swap pressure. Run it once with
+`sudo deploy/tune-sysctl.sh`.
+
 Put Cloudflare in front with a tunnel (`deploy/cloudflared.yml.example`): no
-inbound port is opened and only Cloudflare can reach the app, which is what makes
+inbound port is opened and only Cloudflare can reach nginx, which is what makes
 the `CF-Connecting-IP` header (used for rate limits) trustworthy. Public pages
 send `Cache-Control: s-maxage=60`, so Cloudflare may serve them for a minute.
 

@@ -7,6 +7,7 @@
 tunnel: roytalk
 credentials-file: /etc/cloudflared/roytalk.json
 ingress:
+  # nginx (deploy/nginx-roytalk.conf), which proxies to the app on :3000.
   - hostname: roytalk.com
-    service: http://127.0.0.1:3000
+    service: http://127.0.0.1:8080
   - service: http_status:404
