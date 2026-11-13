@@ -1,6 +1,6 @@
 Please confirm
 
-Someone, hopefully you, asked to receive new writing from {{site_name}} by email at this address.
+Someone, hopefully you, asked to receive the monthly digest from {{site_name}} at this address: a month of writing, with links to read each piece on the site.
 
 Nothing will be sent until you confirm.
 

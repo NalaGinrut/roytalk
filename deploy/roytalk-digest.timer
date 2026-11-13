@@ -1,0 +1,15 @@
+[Unit]
+Description=Monthly roytalk digest
+
+[Timer]
+# The first of each month, UTC. tools/digest.scm refuses to send a second
+# digest in the same calendar month, so a manual run does not double up.
+OnCalendar=*-*-01 08:17:00 UTC
+RandomizedDelaySec=15m
+# Not Persistent: restarting the timer on a redeploy must not replay a missed
+# run and post a digest mid-month. A month missed while the VM is off is
+# covered by the next run, which starts where the last digest ended.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

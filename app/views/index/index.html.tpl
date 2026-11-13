@@ -66,7 +66,7 @@
 
 <section id="letter" aria-labelledby="h-letter">
 <h2 id="h-letter">The letter</h2>
-<p>New writing by email. No account needed, one click to leave.</p>
+<p>One digest a month: a month of writing, with links to read every piece on the site. No account needed, one click to leave.</p>
 <form method="post" action="/letter" class="field" style="margin-top:14px">
 <label for="nl-email">Email address</label>
 <input id="nl-email" name="email" type="email" autocomplete="email" required>

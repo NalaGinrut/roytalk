@@ -1,8 +1,0 @@
-{{eyebrow}}
-
-{{title}}
-{{dek}}
-
-{{excerpt_text}}
-
-[...]

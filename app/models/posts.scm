@@ -53,7 +53,6 @@
         publish-post!
         unpublish-post!
         delete-draft!
-        mark-post-emailed!
         bump-post-views!
         archive-years
         search-posts)
@@ -160,9 +159,6 @@ markdown rendering happen in the controller; this only writes."
 
 (define (delete-draft! x id)
   (q! x "DELETE FROM posts WHERE id = $1::bigint AND status = 'draft'" id))
-
-(define (mark-post-emailed! x id)
-  (q! x "UPDATE posts SET emailed_at = now() WHERE id = $1::bigint" id))
 
 (define (bump-post-views! x slug)
   (q! x "UPDATE posts SET views = views + 1 WHERE slug = $1 AND status = 'published'" slug))

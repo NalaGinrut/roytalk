@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS posts (
   updated_at    timestamptz NOT NULL DEFAULT now(),
   created_at    timestamptz NOT NULL DEFAULT now(),
   views         bigint NOT NULL DEFAULT 0,
-  emailed_at    timestamptz,                  -- when it went out to the letter
+  emailed_at    timestamptz,                  -- when it went out in a monthly digest
   search        tsvector GENERATED ALWAYS AS (
                   setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
                   setweight(to_tsvector('english', coalesce(dek,'')), 'B') ||
@@ -184,6 +184,18 @@ CREATE INDEX IF NOT EXISTS outbox_pending_idx ON outbox (id) WHERE sent_at IS NU
 -- configuration sets, so the newsletter's reputation can't sink sign-in mail.
 ALTER TABLE outbox ADD COLUMN IF NOT EXISTS stream text NOT NULL DEFAULT 'account';
 ALTER TABLE outbox ADD COLUMN IF NOT EXISTS body_html text;
+
+-- One row per digest that actually went out, so a monthly timer cannot send
+-- twice. Nothing is written when there was nothing to send.
+CREATE TABLE IF NOT EXISTS digests (
+  id              bigserial PRIMARY KEY,
+  period_start    timestamptz NOT NULL,
+  period_end      timestamptz NOT NULL,
+  post_count      int NOT NULL,
+  recipient_count int NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS digests_created_idx ON digests (created_at DESC);
 
 -- ---------------------------------------------------------------- site
 CREATE TABLE IF NOT EXISTS sponsors (

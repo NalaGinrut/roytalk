@@ -1,0 +1,23 @@
+[Unit]
+Description=roytalk monthly digest letter
+After=network-online.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=roytalk
+WorkingDirectory=/srv/roytalk
+Environment=LANG=C.UTF-8
+Environment=GUILE_AUTO_COMPILE=1
+Environment=XDG_CACHE_HOME=/var/lib/roytalk-guile-cache
+StateDirectory=roytalk-guile-cache
+ExecStart=/usr/bin/guile -L lib tools/digest.scm
+# Rendering a month of pieces for every subscriber is bounded work; this is
+# a stop, not a schedule.
+TimeoutStartSec=10min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/roytalk-guile-cache
+MemoryMax=150M

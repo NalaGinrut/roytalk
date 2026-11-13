@@ -83,19 +83,26 @@ chmod 700 "$APP_DIR/prv"
 PGPASSWORD="$DB_PASS" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -f "$APP_DIR/db/schema.sql"
 
 say "Services"
-cp "$APP_SRC"/deploy/roytalk-web.service "$APP_SRC"/deploy/roytalk-mailer.service /etc/systemd/system/
+cp "$APP_SRC"/deploy/roytalk-web.service "$APP_SRC"/deploy/roytalk-mailer.service \
+   "$APP_SRC"/deploy/roytalk-digest.service "$APP_SRC"/deploy/roytalk-digest.timer /etc/systemd/system/
 systemctl daemon-reload
 # Guile inlines small procedures across modules into each caller's compiled
 # .go, and only recompiles a file when its own source changes. After a
 # redeploy, a controller that didn't change could keep running the old copy
 # of a library function. Start from an empty compile cache every time.
+systemctl stop roytalk-digest.timer roytalk-digest.service 2>/dev/null || true
 systemctl stop roytalk-web roytalk-mailer 2>/dev/null || true
 rm -rf /var/lib/roytalk-guile-cache/* "$APP_DIR/tmp/cache"
-systemctl enable roytalk-web roytalk-mailer
-systemctl restart roytalk-web roytalk-mailer
+systemctl enable roytalk-web roytalk-mailer roytalk-digest.timer
+# Only the timer starts: a digest goes out on its schedule, never on deploy.
+systemctl restart roytalk-web roytalk-mailer roytalk-digest.timer
 
 say "Done"
 echo "The app listens on 127.0.0.1:3000. Put Cloudflare in front (deploy/README.md)."
 echo "Mail relay: /etc/msmtprc (deploy/msmtprc.example)."
+echo "The monthly digest runs from roytalk-digest.timer: systemctl list-timers roytalk-digest.timer"
+echo "Preview it with:"
+echo "  cd /srv/roytalk && sudo -u roytalk env LANG=C.UTF-8 \\"
+echo "    XDG_CACHE_HOME=/var/lib/roytalk-guile-cache guile -L lib tools/digest.scm --dry-run"
 echo "!! Backups are not scheduled yet: install the user units in deploy/systemd-user/"
 echo "   (backup timer and, optionally, the rclone mount). See README.md, Backups."

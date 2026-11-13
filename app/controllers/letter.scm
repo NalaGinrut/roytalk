@@ -39,7 +39,7 @@
                 (mail-confirm-subscription! rc email (row-ref row "token"))))
              (else #t))))
         (simple-page rc "Almost there"
-                     "Check your inbox: a message with a confirmation link is on its way. Nothing will be sent until you click it."
+                     "Check your inbox: a message with a confirmation link is on its way. Nothing will be sent until you click it. After that, one digest a month."
                      200))))))
 
 (get "/letter/confirm/:token"
@@ -49,7 +49,7 @@
       ;; the address active already and sends nothing).
       (when ok (mail-welcome! rc (row-ref ok "email") (row-ref ok "token")))
       (if (or ok (active-subscriber-token? rc (params rc "token")))
-          (simple-page rc "You are on the list" "New writing will arrive by email. Every letter has a link to leave." 200)
+          (simple-page rc "You are on the list" "One digest a month will arrive by email, with a month of writing inside. Every letter has a link to leave." 200)
           (simple-page rc "Unknown link" "This confirmation link is not valid." 404)))))
 
 ;; One click from the letter, and RFC 8058 one-click (POST) from mail clients.

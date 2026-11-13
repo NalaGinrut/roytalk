@@ -11,8 +11,8 @@
              (app models posts) (app models submissions) (app models questions)
              (app models accounts) (app models tags) (app models sponsors)
              (app models subscribers) (app models outbox) (app models api_tokens)
-             (roytalk views) (roytalk auth) (roytalk render)
-             (roytalk mail))
+             (app models digests)
+             (roytalk views) (roytalk auth) (roytalk render))
 
 (define (the-author rc)
   (let ((acc (current-account rc)))
@@ -136,17 +136,6 @@
     (checked-form rc)
     (delete-draft! rc (params rc "id"))
     (redirect "/admin")))
-
-;; Send a published piece to the letter's subscribers, once.
-(post "/admin/posts/:id/letter"
-  (lambda (rc)
-    (the-author rc)
-    (checked-form rc)
-    (let ((post (post-by-id rc (params rc "id"))))
-      (when (and post (equal? (row-ref post "status") "published") (not (row-ref post "emailed")))
-        (queue-letter! rc post)
-        (mark-post-emailed! rc (row-ref post "id")))
-      (redirect (format #f "/admin/posts/~a?sent=1" (params rc "id"))))))
 
 ;; ------------------------------------------------------------------ inbox
 
@@ -289,6 +278,7 @@
     (let* ((acc (the-author rc))
            (page-title "The letter") (page-desc "") (canonical (absolute-url "/admin")) (section "letter")
            (counts (subscriber-status-counts rc))
+           (digest (last-digest rc))
            (outbox (outbox-stats rc)))
       (render "admin/letter" (the-environment) #:headers (private-cache)))))
 

@@ -15,47 +15,9 @@ and PostgreSQL, rendered as plain HTML.
 - Sign in with GitHub, Google, X or a one-time email link. No passwords.
   An account is a handle and its sign-in methods, nothing else.
 - Readers can send in links; the queue is private to the author.
-- The letter (newsletter) is a separate list: double opt-in, one-click leave.
+- The letter (newsletter) is a separate list: double opt-in, one-click leave,
+  and one digest a month with that month's writing.
 - Human only: written by people. Open to every reader, machines included.
-
-## Layout
-
-```
-ENTRY                     Artanis entry; static file types
-conf/artanis.conf         Artanis config. The domain lives here only: host.name
-prv/settings.example.scm  private settings (copy to prv/settings.scm, never commit)
-db/schema.sql             the whole schema, idempotent; the schema authority
-app/models/               one module per table; all SQL lives here
-app/controllers/          index posts account letter submit admin api
-app/views/<controller>/   *.html.tpl templates
-app/views/shared/         partials (head, bar, footer, sponsor); not served
-lib/roytalk/              util settings db web auth oauth views render mail
-pub/css/                  site.css (one hand-written stylesheet), fonts.css
-pub/fonts/                self-hosted woff2/woff + OFL licences
-pub/js/                   site.js (readers), admin.js (the desk)
-sys/mails/                mail templates: base.html/.txt + one folder per mail
-tools/init-db.sh          create the role, database, schema and migrations
-tools/mailer.scm          sends the outbox; a separate process
-tools/backup.sh           nightly dump to prv/asset-private/roytalk/backup/*.sql.bz2
-tools/restore.sh          restore a dump, in one transaction
-deploy/                   server setup, systemd units
-```
-
-`app/models/` modules hold every SQL statement and are imported by
-controllers and by the `lib/roytalk/` services; controllers do HTTP, checks and
-rendering. They are Artanis model modules: each opens with
-`(import (artanis mvc model))` and a `create-artanis-model` declaration, and
-uses the generated `$model` through `(roytalk db)`'s `model-conn` /
-`model-set!`. The declaration mirrors the columns; `db/schema.sql` is still
-the schema authority, so run `tools/init-db.sh` before `art work` and change
-schema there, not in a model. The macro's `try-create` checks
-`information_schema` first and leaves an existing table alone, and it cannot
-express `citext`, `timestamptz` defaults, generated `tsvector`, foreign keys,
-partial indexes or checks. Keep `:deps` to one module: Artanis passes it to
-`process-use-modules` as a single nested list. guile-dbd-postgresql cannot
-convert `citext` result columns to Scheme ("unknown field type 16391"), so a
-model function that returns one casts it to text and reads it through the
-parameterised `q` helpers; writes still go through `$model`.
 
 ## Running it locally
 
@@ -68,8 +30,9 @@ cp prv/settings.example.scm prv/settings.scm   # set secret, author-emails,
                                                # base-url "http://127.0.0.1:3000"
 # set db.passwd in conf/artanis.conf, then:
 tools/init-db.sh                               # asks before changing the password
-LANG=C.UTF-8 art work                          # http://127.0.0.1:3000
+art work                          # http://127.0.0.1:3000
 guile -L lib tools/mailer.scm                  # another shell, with mail-mode send
+guile -L lib tools/digest.scm --dry-run        # preview the monthly letter
 ```
 
 `tools/init-db.sh` needs access to the local `postgres` superuser (it tries
@@ -101,7 +64,8 @@ and you are the author: the desk is at `/admin`.
 `/admin` → New piece. Markdown with `$x$` / `$$x$$` for math and fenced code
 with a language name for highlighting. Tags decide what a piece is (an essay, a
 commentary …). For commentary on an outside piece, fill in the source link and,
-if a reader sent it in, their handle. Publish, then **Send to the letter** once.
+if a reader sent it in, their handle. A published piece joins the next monthly
+digest automatically; nothing is sent for it on its own.
 
 ## Configuration
 
@@ -129,7 +93,7 @@ sending domains:
 | Stream | Mails | Settings |
 |---|---|---|
 | `account` | sign-in link, subscription confirmation, welcome | `mail-from-account`, `ses-configuration-set-account` |
-| `letter` | the newsletter: a piece's opening, linked to the rest | `mail-from-letter`, `ses-configuration-set-letter` |
+| `letter` | the monthly digest: each piece's opening, linked to the rest | `mail-from-letter`, `ses-configuration-set-letter` |
 
 Each falls back to `mail-from`. Both streams are piped to `sendmail-command`
 (msmtp with `--read-envelope-from`, so the envelope sender follows `From`);
@@ -145,21 +109,165 @@ filled in (escaped in HTML). **The wording there is a draft: rewrite it.**
 
 Submissions marked used send nothing. Thanks, if any, go in the piece.
 
+### Monthly digest: step by step
+
+The timer does the work. These steps deploy it, check it, and preview or send a
+digest by hand. Run them on the server as root or with `sudo`.
+
+#### 1. Deploy the code
+
+From the repository checkout (the folder containing `deploy/setup-server.sh`):
+
+```sh
+sudo deploy/setup-server.sh
+```
+
+This is idempotent. It applies `db/schema.sql` (creating the `digests` table),
+copies the new systemd units, clears the Guile compile cache, and restarts
+`roytalk-web`, `roytalk-mailer` and `roytalk-digest.timer`. It does **not**
+start a digest.
+
+#### 2. Check the table
+
+```sh
+sudo -u postgres psql -d roytalk -c "SELECT to_regclass('public.digests') AS digests_table;"
+```
+
+Expected: one row, `digests`.
+
+#### 3. Check the timer
+
+```sh
+systemctl list-timers roytalk-digest.timer --no-pager
+systemctl status roytalk-digest.timer --no-pager
+```
+
+Expected: the next run is the first of the month at 08:17 UTC (shown in the
+server's local time).
+
+#### 4. Preview without writing or sending
+
+```sh
+cd /srv/roytalk
+sudo -u roytalk env LANG=C.UTF-8 XDG_CACHE_HOME=/var/lib/roytalk-guile-cache \
+  guile -L lib tools/digest.scm --dry-run
+```
+
+This writes no rows and queues no mail; the preview always uses a fake
+unsubscribe link. Outcomes:
+
+| Output | Meaning |
+|---|---|
+| `Nothing to send.` | No published piece since the last digest is un-emailed |
+| Subject, piece list, plain text | A preview; check the links |
+
+A dry run skips the once-a-month guard and renders even when nobody is
+subscribed, so it always shows what a real run would send. Check that links
+point at your domain (`https://…`), not `127.0.0.1`.
+
+#### 5. Send one by hand (optional)
+
+```sh
+sudo systemctl start roytalk-digest
+sudo journalctl -u roytalk-digest -n 30 --no-pager
+```
+
+Look for `Queued N piece(s) for M recipient(s).`, `Nothing to send.` or
+`No active subscribers; nothing sent.` The mails are only queued; the mailer
+sends them.
+
+#### 6. Check the queue and the digest record
+
+```sh
+sudo -u postgres psql -d roytalk -c \
+  "SELECT id, to_addr, subject, sent_at IS NULL AS pending
+     FROM outbox WHERE stream = 'letter' ORDER BY id DESC LIMIT 5;"
+
+sudo -u postgres psql -d roytalk -c \
+  "SELECT id, period_start, period_end, post_count, recipient_count
+     FROM digests ORDER BY id DESC LIMIT 3;"
+```
+
+`pending = t` means the mailer has not sent it yet. Check the mailer:
+
+```sh
+systemctl status roytalk-mailer --no-pager
+sudo journalctl -u roytalk-mailer -n 30 --no-pager
+```
+
+#### 7. See the exact message (local development)
+
+With `(mail-mode . log)` in `prv/settings.scm`, nothing is sent; messages land
+in `log/outbox/`:
+
+```sh
+guile -L lib tools/digest.scm
+guile -L lib tools/mailer.scm --once
+ls -l log/outbox/
+```
+
+Open the newest `.eml`. It should be `multipart/alternative`, carry both
+`List-Unsubscribe` headers, and link each piece to the site. This is the safest
+way to check wording and styling.
+
+#### 8. What happens on its own
+
+- `roytalk-digest.timer` runs on the first of each month at 08:17 UTC, with up
+  to fifteen minutes of jitter.
+- It takes every published piece since the previous digest's end (thirty days
+  back on the first run) whose `emailed_at` is still NULL, newest first.
+- In one transaction it queues one personalised copy per active subscriber,
+  sets `emailed_at = now()` on the included pieces, and writes one `digests`
+  row. The next run starts at that row's `period_end`, so a long month or a
+  missed run cannot drop a piece; `emailed_at` prevents a second send.
+- No pieces, or no active subscribers: nothing is sent and nothing is
+  recorded. Pieces published later still go out with the next run.
+- One digest per UTC calendar month. `--force` only bypasses that guard; it
+  cannot resend pieces already marked `emailed_at`.
+- The timer is not `Persistent`, so a redeploy never replays a missed run in
+  the middle of a month. If the VM was off on the first, the next run covers
+  the whole gap.
+
+#### Troubleshooting
+
+Nothing selected after publishing:
+
+```sh
+sudo -u postgres psql -d roytalk -c \
+  "SELECT id, slug, status, published_at, emailed_at
+     FROM posts ORDER BY published_at DESC NULLS FIRST LIMIT 10;"
+```
+
+A piece is only included when `status = 'published'`, `emailed_at IS NULL`,
+and `published_at` is after the previous digest's `period_end`.
+
+Links show `127.0.0.1`: `host.name` is missing from `conf/artanis.conf`, or the
+command was not run from `/srv/roytalk`. Fix `conf/artanis.conf` and rerun the
+preview.
+
+Old behaviour after changing library code: clear the cache and restart:
+
+```sh
+sudo rm -rf /var/lib/roytalk-guile-cache/*
+sudo systemctl restart roytalk-web roytalk-mailer
+```
+
 SES notes: in a fresh region each identity starts in the sandbox; turn on the
 account-level suppression list (`aws sesv2 put-account-suppression-attributes
 --suppressed-reasons BOUNCE COMPLAINT`) and watch bounce and complaint rates per
 region.
 
-## Deploying (Oracle Cloud Always Free, 1 GB)
+## Deploying
 
 ```sh
 sudo deploy/setup-server.sh
 ```
 
 It adds swap, builds the dependencies, tunes PostgreSQL for 1 GB, installs the
-app to `/srv/roytalk`, and starts two systemd services: `roytalk-web` and
-`roytalk-mailer`. Backups are user units, installed by hand (below). Running
-it again redeploys; it never touches `prv/asset-private/`.
+app to `/srv/roytalk`, and starts two systemd services (`roytalk-web` and
+`roytalk-mailer`) plus `roytalk-digest.timer` for the monthly letter. Backups
+are user units, installed by hand (below). Running it again redeploys; it never
+touches `prv/asset-private/`.
 
 Put Cloudflare in front with a tunnel (`deploy/cloudflared.yml.example`): no
 inbound port is opened and only Cloudflare can reach the app, which is what makes

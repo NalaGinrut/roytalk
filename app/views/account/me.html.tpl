@@ -45,7 +45,7 @@
 <section class="split" aria-labelledby="h-letter">
 <h2 id="h-letter">The letter</h2>
 <div>
-<p>The newsletter is a separate list and does not use this account. Every letter has a one-click link to leave.</p>
+<p>The newsletter is a separate list and does not use this account. It sends one digest a month, and every letter has a one-click link to leave.</p>
 </div>
 </section>
 

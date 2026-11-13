@@ -1,0 +1,7 @@
+{{count}} {{noun}} since the last letter.
+
+A month of writing, gathered. Each opening below links to the whole piece on the site.
+
+{{items_text}}
+
+Questions are welcome under every essay: select any sentence and ask.

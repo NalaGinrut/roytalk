@@ -2,7 +2,6 @@
 <main class="wrap" style="padding-top:32px;padding-bottom:80px">
 <% (when error-message %><div class="notice error" role="alert" style="margin-bottom:24px"><p><%= (h error-message) %></p></div><% ) %>
 <% (when (query-ref rc "saved") %><div class="notice" role="status" style="margin-bottom:24px"><p>Saved.<% (when (equal? (f "status") "published") %> <a href=<%= (qa "/posts/" (f "slug")) %>>See it on the site</a>.<% ) %></p></div><% ) %>
-<% (when (query-ref rc "sent") %><div class="notice" role="status" style="margin-bottom:24px"><p>Queued for every active subscriber. The mailer sends it in the background.</p></div><% ) %>
 <form method="post" action=<%= (qa (if (present? (f "id")) (string-append "/admin/posts/" (f "id")) "/admin/posts")) %> class="editor" id="editor">
 <input type="hidden" name="csrf" value=<%= (qa csrf) %>>
 <div class="left">
@@ -34,8 +33,8 @@
 </form>
 <% (when (present? (f "id")) %>
 <div class="btn-row" style="margin-top:40px;padding-top:24px;border-top:1px solid var(--rule)">
-<% (when (and (equal? (f "status") "published") (blank? (f "emailed"))) %><form method="post" action=<%= (qa "/admin/posts/" (f "id") "/letter") %>><input type="hidden" name="csrf" value=<%= (qa csrf) %>><button class="btn outline" type="submit" data-confirm="Send this piece to every subscriber now?">Send to the letter</button></form><% ) %>
-<% (when (present? (f "emailed")) %><span class="muted small">Sent to the letter on <%= (h (f "emailed")) %>.</span><% ) %>
+<% (when (and (equal? (f "status") "published") (blank? (f "emailed"))) %><span class="muted small">This piece joins the next monthly digest.</span><% ) %>
+<% (when (present? (f "emailed")) %><span class="muted small">Included in the monthly letter on <%= (h (f "emailed")) %>.</span><% ) %>
 <% (when (equal? (f "status") "draft") %><form method="post" action=<%= (qa "/admin/posts/" (f "id") "/delete") %>><input type="hidden" name="csrf" value=<%= (qa csrf) %>><button class="btn danger" type="submit" data-confirm="Delete this draft for good?">Delete draft</button></form><% ) %>
 </div>
 <% ) %>
