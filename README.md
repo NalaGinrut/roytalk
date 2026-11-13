@@ -305,9 +305,9 @@ sudo APP_DIR=/var/www/roytalk deploy/setup-server.sh --from services
 
 The app speaks plain HTTP on `127.0.0.1:3000`, so nginx fronts it.
 `deploy/nginx-roytalk.conf` listens on `127.0.0.1:8080`, proxies to the app,
-hides the upstream `Server` header (GNU Artanis) and nginx's version, and
-rate-limits per client IP — the client address comes from Cloudflare's
-`CF-Connecting-IP`, which is only trusted on loopback, i.e. from cloudflared.
+serves the files under `pub/` itself with a cache lifetime, and rate-limits per
+client IP — the client address comes from Cloudflare's `CF-Connecting-IP`,
+which is only trusted on loopback, i.e. from cloudflared.
 
 ```sh
 sudo apt-get install -y nginx
@@ -318,9 +318,11 @@ sudo nginx -t && sudo systemctl reload nginx
 ```
 
 Then point the tunnel at it (`service: http://127.0.0.1:8080`, see
-`deploy/cloudflared.yml.example`). To show the upstream banner instead of
-hiding it, remove `proxy_hide_header Server;`; to send `Server: roytalk`, install
-`nginx-extras` and uncomment the `more_set_headers` line.
+`deploy/cloudflared.yml.example`). Proxied responses pass the upstream
+`Server:` header through on purpose (advertising the GNU Artanis version);
+responses nginx generates itself (static files, error pages) send
+`Server: nginx`, since `server_tokens off` hides only nginx's version. To send
+other headers, install `nginx-extras` and use `more_set_headers`.
 
 `deploy/tune-sysctl.sh` writes and applies `/etc/sysctl.d/90-roytalk.conf`:
 accept-queue and SYN backlog, keep-alive/TIME_WAIT handling, socket buffers,
@@ -329,8 +331,11 @@ flood protection, file descriptors and swap pressure. Run it once with
 
 Put Cloudflare in front with a tunnel (`deploy/cloudflared.yml.example`): no
 inbound port is opened and only Cloudflare can reach nginx, which is what makes
-the `CF-Connecting-IP` header (used for rate limits) trustworthy. Public pages
-send `Cache-Control: s-maxage=60`, so Cloudflare may serve them for a minute.
+the `CF-Connecting-IP` header (used for rate limits) trustworthy. Plain-http
+requests are redirected to https: cloudflared forwards `X-Forwarded-Proto`, and
+nginx answers `http` with a 301 (Cloudflare's "Always Use HTTPS" does the same
+at the edge). Public pages send `Cache-Control: s-maxage=60`, so Cloudflare may
+serve them for a minute.
 
 **Treat the VM as disposable.** Free instances can be reclaimed. Everything
 except the database is in this repository.
