@@ -47,7 +47,7 @@ if [ -z "$row" ]; then
 fi
 IFS='|' read -r ID CURRENT AUTHOR <<<"$row"
 
-if [ "$AUTHOR" != "t" ]; then
+if [ "$AUTHOR" != "t" ] && [ "$AUTHOR" != "true" ]; then
   echo "Account $ID ($EMAIL) is not an author; check author-emails in prv/settings.scm and sign in again." >&2
   exit 1
 fi
