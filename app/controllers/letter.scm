@@ -25,22 +25,41 @@
        ((not (valid-email? email))
         (simple-page rc "Not quite" "That does not look like an email address. Please go back and check it." 422))
        (else
-        (when (string-null? trap)
-          (let ((row (subscriber-by-email rc email)))
-            (cond
-             ((not row)
-              (let ((tok (random-token 24)))
-                (insert-subscriber! rc email tok)
-                (mail-confirm-subscription! rc email tok)))
-             ((member (row-ref row "status") '("pending" "unsubscribed"))
-              ;; Ask again, at most once a day, so the form cannot be used to flood someone.
-              (when (subscriber-can-resend? rc email)
-                (mark-subscriber-pending! rc email)
-                (mail-confirm-subscription! rc email (row-ref row "token"))))
-             (else #t))))
-        (simple-page rc "Almost there"
-                     "Check your inbox: a message with a confirmation link is on its way. Nothing will be sent until you click it. After that, one digest a month."
-                     200))))))
+        ;; Say what really happened: never claim a message is on its way when
+        ;; none was queued. The honeypot pretends everything went fine.
+        (let ((outcome
+               (if (string-null? trap)
+                   (let ((row (subscriber-by-email rc email)))
+                     (cond
+                      ((not row)
+                       (let ((tok (random-token 24)))
+                         (insert-subscriber! rc email tok)
+                         (mail-confirm-subscription! rc email tok))
+                       'sent)
+                      ((member (row-ref row "status") '("pending" "unsubscribed"))
+                       ;; Ask again, at most once every ten minutes, so the form
+                       ;; cannot be used to flood someone.
+                       (if (subscriber-can-resend? rc email)
+                           (begin
+                             (mark-subscriber-pending! rc email)
+                             (mail-confirm-subscription! rc email (row-ref row "token"))
+                             'sent)
+                           'throttled))
+                      (else 'active)))
+                   'sent)))
+          (case outcome
+            ((active)
+             (simple-page rc "You are on the list"
+                          "This address is already subscribed; there is nothing more to confirm."
+                          200))
+            ((throttled)
+             (simple-page rc "Already sent"
+                          "A confirmation message went to this address a few minutes ago. Please check your inbox and spam folder; you can ask again shortly."
+                          200))
+            (else
+             (simple-page rc "Almost there"
+                          "Check your inbox: a message with a confirmation link is on its way. Nothing will be sent until you click it. After that, one digest a month."
+                          200)))))))))
 
 (get "/letter/confirm/:token"
   (lambda (rc)

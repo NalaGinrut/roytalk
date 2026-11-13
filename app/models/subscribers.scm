@@ -30,8 +30,9 @@
   #t)
 
 (define-public (subscriber-can-resend? x email)
-  "Ask again at most once a day, so the form cannot flood an address."
-  (qval x "SELECT created_at < now() - interval '1 day' OR status = 'unsubscribed'
+  "Ask again at most once every ten minutes, so the form cannot flood an
+address. An address that left the list may rejoin at once."
+  (qval x "SELECT created_at < now() - interval '10 minutes' OR status = 'unsubscribed'
              FROM subscribers WHERE email = $1" email))
 
 (define-public (mark-subscriber-pending! x email)
