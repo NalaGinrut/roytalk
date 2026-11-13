@@ -1,0 +1,25 @@
+[Unit]
+Description=rclone mount - roytalk-assets-private
+After=network-online.target
+Wants=network-online.target
+AssertPathIsDirectory=/var/www/roytalk/prv/assets-prv
+
+[Service]
+Type=notify
+Environment=RCLONE_CONFIG=%h/.config/rclone/rclone.conf
+# R2 does not implement CreateBucket (the bucket must already exist) and
+# answers 501 to HEAD with ?versionId=, which rclone issues after every
+# upload to read the new object's metadata back. Without these two flags
+# each upload is reported as failed even though the PUT succeeded, and
+# the VFS cache retries it forever.
+ExecStart=/usr/bin/rclone mount roytalk-assets-private:roytalk-assets-private /var/www/ashpool/prv/assets-prv \
+  --vfs-cache-mode writes \
+  --dir-cache-time 10s \
+  --s3-no-check-bucket \
+  --s3-no-head
+ExecStop=/bin/fusermount -u /var/www/roytalk/prv/assets-prv
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
