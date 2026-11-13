@@ -71,6 +71,10 @@ pub/css/gizvault.css
 gizvault*
 pub/products
 pub/img/*
+# Site chrome ships with the repo; only uploads and product images stay out.
+!pub/img/favicon.ico
+!pub/img/favicon.svg
+!pub/img/og-default.webp
 pub/giz*
 pub/dashboard
 assets-pub

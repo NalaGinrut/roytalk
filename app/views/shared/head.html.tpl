@@ -5,6 +5,7 @@
 <meta name="author" content=<%= (qa (author-name)) %>>
 <link rel="canonical" href=<%= (qa canonical) %>>
 <link rel="alternate" type="application/atom+xml" title=<%= (qa (site-name)) %> href="/feed/atom">
+<link rel="icon" href="/img/favicon.ico" sizes="any">
 <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
 <meta property="og:site_name" content=<%= (qa (site-name)) %>>
 <meta property="og:title" content=<%= (qa page-title) %>>
