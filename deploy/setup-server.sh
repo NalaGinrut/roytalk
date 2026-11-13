@@ -47,7 +47,7 @@ die() { echo "$*" >&2; exit 1; }
 # y keeps the old file. Without a terminal (unattended run) it overwrites,
 # as before.
 install_unit() {
-  local dst=$1 tmp answer= keep=
+  local dst=$1 owner=${2:-root} mode=${3:-644} tmp answer= keep=
   tmp=$(mktemp) || die "mktemp failed"
   cat > "$tmp" || { rm -f "$tmp"; die "failed to read unit for $dst"; }
 
@@ -72,9 +72,19 @@ install_unit() {
   if [ -n "$keep" ]; then
     echo "   kept $dst"
   else
-    install -m 644 "$tmp" "$dst"
+    install -o "$owner" -g "$owner" -m "$mode" "$tmp" "$dst"
   fi
   rm -f "$tmp"
+}
+
+# Run systemctl --user for the app user. HOME and XDG_RUNTIME_DIR are set
+# explicitly: runuser starts from a clean environment and systemctl needs them
+# to find ~/.config/systemd/user and the user manager's socket.
+user_systemctl() {
+  local uid
+  uid=$(id -u "$APP_USER")
+  runuser -u "$APP_USER" -- env HOME="$APP_DIR" XDG_RUNTIME_DIR="/run/user/$uid" \
+    systemctl --user "$@"
 }
 
 usage() {
@@ -87,7 +97,8 @@ Stages, in order:
 No flag runs every stage. --from START runs START and everything after it.
 --list prints the stage names.
 
-Environment: APP_DIR (default /var/www/roytalk), APP_USER, DB_NAME, DB_USER, SRC.
+Environment: APP_DIR (default /var/www/roytalk), APP_USER, DB_NAME, DB_USER, SRC,
+RCLONE_CONFIG_SRC (default /root/.config/rclone/rclone.conf).
 EOF
 }
 
@@ -243,24 +254,54 @@ services() {
   say "Services"
   # The units in deploy/ are written for /var/www/roytalk; rewrite the path when
   # the app lives elsewhere, so a redeploy doesn't point them back there.
-  local unit install_rclone=
+  local unit install_rclone= start_mount= mountpoint="$APP_DIR/prv/asset-private"
+  # The app directory is also the app user's home; earlier manual setup may
+  # have left .config owned by root, and systemctl --user needs to traverse it.
+  if [ -d "$APP_DIR/.config" ]; then
+    chown "$APP_USER:$APP_USER" "$APP_DIR/.config"
+  fi
   for unit in roytalk-web roytalk-mailer roytalk-digest; do
     sed "s#/var/www/roytalk#$APP_DIR#g" "$APP_SRC/deploy/$unit.service" \
       | install_unit "/etc/systemd/system/$unit.service"
   done
   install_unit /etc/systemd/system/roytalk-digest.timer \
     < "$APP_SRC/deploy/roytalk-digest.timer"
-  # The R2 mount is optional: install it only once the app user has an rclone
-  # config, and never restart it here, so a redeploy cannot disturb a live
-  # mount. Until then prv/asset-private/ stays a plain directory (local dumps).
-  if [ -f "$APP_DIR/.config/rclone/rclone.conf" ]; then
+
+  # R2 mount. It runs as the app user, so it needs that user's rclone config;
+  # take the root setup's copy when there is none yet (RCLONE_CONFIG_SRC
+  # overrides the source). Without any config prv/asset-private/ stays a plain
+  # directory and backups are written to local disk.
+  local rclone_conf="$APP_DIR/.config/rclone/rclone.conf"
+  local rclone_src=${RCLONE_CONFIG_SRC:-/root/.config/rclone/rclone.conf}
+  if [ ! -f "$rclone_conf" ] && [ -f "$rclone_src" ]; then
+    install -d -o "$APP_USER" -g "$APP_USER" "$(dirname "$rclone_conf")"
+    install -o "$APP_USER" -g "$APP_USER" -m 600 "$rclone_src" "$rclone_conf"
+    echo "Copied $rclone_src to $rclone_conf"
+  fi
+  if [ -f "$rclone_conf" ]; then
+    chown "$APP_USER:$APP_USER" "$rclone_conf"
+    chmod 600 "$rclone_conf"
     sed -e "s#/var/www/roytalk#$APP_DIR#g" \
         -e "s#^User=roytalk\$#User=$APP_USER#" \
         -e "s#^Group=roytalk\$#Group=$APP_USER#" \
         "$APP_SRC/deploy/rclone-roytalk-assets-private.service" \
       | install_unit /etc/systemd/system/rclone-roytalk-assets-private.service
     install_rclone=1
+    if mountpoint -q "$mountpoint" \
+       && ! systemctl is-active --quiet rclone-roytalk-assets-private; then
+      # A mount made by someone else (e.g. the old root-level unit): report it
+      # rather than start a second mount that would fail and retry forever.
+      echo "!! $mountpoint is mounted, but not by rclone-roytalk-assets-private." >&2
+      echo "   Unmount it (fusermount3 -u $mountpoint) and rerun this stage." >&2
+    else
+      if ! mountpoint -q "$mountpoint"; then
+        install -d "$mountpoint"
+        chown "$APP_USER:$APP_USER" "$mountpoint"
+      fi
+      start_mount=1
+    fi
   fi
+
   systemctl daemon-reload
   # Guile inlines small procedures across modules into each caller's compiled
   # .go, and only recompiles a file when its own source changes. After a
@@ -272,9 +313,38 @@ services() {
   systemctl enable roytalk-web roytalk-mailer roytalk-digest.timer
   if [ -n "$install_rclone" ]; then
     systemctl enable rclone-roytalk-assets-private
+    # start, not restart: a redeploy must not disturb a live mount
+    if [ -n "$start_mount" ]; then
+      systemctl start rclone-roytalk-assets-private
+    fi
   fi
   # Only the timer starts: a digest goes out on its schedule, never on deploy.
   systemctl restart roytalk-web roytalk-mailer roytalk-digest.timer
+
+  # Backup user units: they run under the app user's manager (which lingers,
+  # so no login is needed) because that user owns conf/artanis.conf and the
+  # mount.
+  local user_units="$APP_DIR/.config/systemd/user"
+  install -d -o "$APP_USER" -g "$APP_USER" "$user_units"
+  for unit in roytalk-backup.service roytalk-backup.timer; do
+    install_unit "$user_units/$unit" "$APP_USER" 644 \
+      < "$APP_SRC/deploy/systemd-user/$unit"
+  done
+  # Left over from when the mount was a user unit; it is a system unit now.
+  rm -f "$user_units/roytalk-asset-mount.service" \
+        "$user_units/default.target.wants/roytalk-asset-mount.service" \
+        "$user_units/multi-user.target.wants/roytalk-asset-mount.service"
+  # Enable the timer with a symlink instead of `systemctl --user enable`:
+  # systemd 255.4-1ubuntu8.{0,1,2} fails enable for units in ~/.config with a
+  # bogus "Unit file ... does not exist".
+  install -d -o "$APP_USER" -g "$APP_USER" "$user_units/timers.target.wants"
+  ln -sfn ../roytalk-backup.timer "$user_units/timers.target.wants/roytalk-backup.timer"
+  chown -h "$APP_USER:$APP_USER" "$user_units/timers.target.wants/roytalk-backup.timer"
+
+  loginctl enable-linger "$APP_USER"
+  systemctl start "user@$(id -u "$APP_USER")"
+  user_systemctl daemon-reload
+  user_systemctl start roytalk-backup.timer
 }
 
 for ((i = START; i <= END; i++)); do
@@ -290,6 +360,7 @@ echo "The monthly digest runs from roytalk-digest.timer: systemctl list-timers r
 echo "Preview it with:"
 echo "  cd $APP_DIR && sudo -u $APP_USER env LANG=C.UTF-8 \\"
 echo "    XDG_CACHE_HOME=/var/lib/roytalk-guile-cache guile -L lib tools/digest.scm --dry-run"
-echo "!! Backups are not scheduled yet: install the user units in deploy/systemd-user/"
-echo "   (backup timer). The R2 mount is the system unit installed above when"
-echo "   $APP_DIR/.config/rclone/rclone.conf exists. See README.md, Backups."
+echo "Backups run from roytalk-backup.timer as $APP_USER; check it with"
+echo "  sudo -u $APP_USER -H env XDG_RUNTIME_DIR=/run/user/$(id -u "$APP_USER") \\"
+echo "    systemctl --user list-timers"
+echo "R2 mount (when configured): systemctl status rclone-roytalk-assets-private"
