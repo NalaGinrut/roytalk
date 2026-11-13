@@ -77,6 +77,13 @@ install_unit() {
   rm -f "$tmp"
 }
 
+# Is PATH a mount point? mountpoint(1) stats the directory, but a FUSE mount
+# made by another user refuses root (EACCES) without allow_other, so it would
+# report "not a mountpoint". The kernel's mount table can always be read.
+is_mountpoint() {
+  grep -q " $1 " /proc/self/mountinfo
+}
+
 # Run systemctl --user for the app user. HOME and XDG_RUNTIME_DIR are set
 # explicitly: runuser starts from a clean environment and systemctl needs them
 # to find ~/.config/systemd/user and the user manager's socket.
@@ -231,7 +238,7 @@ app() {
     echo "APP_SRC is APP_DIR ($APP_DIR); the code is already in place"
   fi
   mkdir -p "$APP_DIR"/{log,tmp,prv}
-  mountpoint -q "$APP_DIR/prv/asset-private" || mkdir -p "$APP_DIR/prv/asset-private"
+  is_mountpoint "$APP_DIR/prv/asset-private" || mkdir -p "$APP_DIR/prv/asset-private"
   sed -i -e "s/^db.passwd = .*/db.passwd = $DB_PASS/" "$APP_DIR/conf/artanis.conf"
   if [ ! -f "$APP_DIR/prv/settings.scm" ]; then
     local secret
@@ -244,8 +251,9 @@ app() {
   chmod 700 "$APP_DIR/prv"
   # The mount is made by the app user, so it must own the mountpoint. Do this
   # only when nothing is mounted: chowning a mountpoint would hit the R2 root.
-  mountpoint -q "$APP_DIR/prv/asset-private" \
-    || chown "$APP_USER:$APP_USER" "$APP_DIR/prv/asset-private"
+  if ! is_mountpoint "$APP_DIR/prv/asset-private"; then
+    chown "$APP_USER:$APP_USER" "$APP_DIR/prv/asset-private"
+  fi
   PGPASSWORD="$DB_PASS" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -f "$APP_DIR/db/schema.sql"
 }
 
@@ -287,14 +295,14 @@ services() {
         "$APP_SRC/deploy/rclone-roytalk-assets-private.service" \
       | install_unit /etc/systemd/system/rclone-roytalk-assets-private.service
     install_rclone=1
-    if mountpoint -q "$mountpoint" \
+    if is_mountpoint "$mountpoint" \
        && ! systemctl is-active --quiet rclone-roytalk-assets-private; then
       # A mount made by someone else (e.g. the old root-level unit): report it
       # rather than start a second mount that would fail and retry forever.
       echo "!! $mountpoint is mounted, but not by rclone-roytalk-assets-private." >&2
       echo "   Unmount it (fusermount3 -u $mountpoint) and rerun this stage." >&2
     else
-      if ! mountpoint -q "$mountpoint"; then
+      if ! is_mountpoint "$mountpoint"; then
         install -d "$mountpoint"
         chown "$APP_USER:$APP_USER" "$mountpoint"
       fi
