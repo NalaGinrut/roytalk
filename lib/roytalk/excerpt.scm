@@ -15,7 +15,8 @@
   #:export (strip-tags
             inline-math->tex
             style-inline
-            letter-excerpt))
+            letter-excerpt
+            excerpt-paragraphs))
 
 (define (strip-tags s)
   (let* ((s (regexp-substitute/global #f "<[^>]*>" s 'pre "" 'post))
@@ -99,3 +100,13 @@ The first paragraph is always kept. Returns (html . text)."
            ;; starts at the first real paragraph, where the prose does.
            ((null? paras) (lp (cdr lines) paras words))
            (else (done)))))))))
+
+(define* (excerpt-paragraphs body-html #:key (max-words 80))
+  "The opening of a piece as plain-text paragraphs for the web, about
+MAX-WORDS words: the same opening the letter prints, without mail styling.
+Returns a list of strings; empty when there is nothing to quote."
+  (let ((text (cdr (letter-excerpt body-html #:max-words max-words))))
+    (if (string-null? text)
+        '()
+        (filter (lambda (p) (not (string-null? p)))
+                (map string-trim-both (string-split text #\newline))))))

@@ -115,6 +115,9 @@ img { max-width: 100%; height: auto; }
 .lead h1 a, .entry h2 a { color: var(--ink); text-decoration: none; }
 .lead h1 a:hover, .entry h2 a:hover { text-decoration: underline; }
 .lead .dek { margin: 20px 0 0; max-width: 620px; font-size: 20px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.lead .excerpt { margin: 16px 0 0; max-width: 620px; font-size: 17px; line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
+.lead .excerpt p { margin: 0 0 12px; }
+.lead .excerpt p:last-child { margin-bottom: 0; }
 .lead .meta { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 14px; color: var(--muted); }
 .lead .meta a { font-weight: 600; }
 
@@ -123,8 +126,20 @@ img { max-width: 100%; height: auto; }
 .entry .body { flex: 1 1 0; min-width: 0; }
 .entry h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 30px; line-height: 1.15; }
 .entry p { margin: 8px 0 0; color: var(--ink-2); text-wrap: pretty; font-size: 17px; line-height: 1.6; }
+.entry .excerpt p:first-child { margin-top: 12px; }
 .entry .meta { margin-top: 10px; font-size: 14px; color: var(--muted); }
 .more { display: inline-block; margin-top: 28px; }
+
+.pager {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--rule);
+  font-size: 14px; color: var(--muted);
+}
+.pager-side { flex: 1 1 0; }
+.pager-next { text-align: right; }
+.pager a { color: var(--green); font-weight: 600; text-decoration: none; }
+.pager a:hover { text-decoration: underline; }
+.pager-info { flex: none; }
 
 .side h2 {
   margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--ink);

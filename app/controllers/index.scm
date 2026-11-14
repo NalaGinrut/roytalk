@@ -5,16 +5,47 @@
 
 (use-modules (srfi srfi-1)
              (roytalk util) (roytalk settings) (roytalk db) (roytalk web)
+             (roytalk excerpt)
              (app models posts) (app models tags) (app models sponsors)
              (roytalk views))
 
+;; Ten pieces a page: enough for a new reader to judge the writing, short
+;; enough that the page stays a page. Page one is "/", the rest "?page=N".
+(define home-per-page 10)
+
+(define (home-page-url n)
+  (if (= n 1)
+      (absolute-url "/")
+      (absolute-url (string-append "/?page=" (number->string n)))))
+
+(define (page-number rc)
+  (let ((n (string->number (query-ref rc "page" "1"))))
+    (min (if (and n (integer? n) (>= n 1)) n 1) 100000)))
+
+(define (with-excerpt row)
+  (acons "excerpt"
+         (excerpt-paragraphs (row-ref row "body_html") #:max-words 80)
+         row))
+
 (get "/"
   (lambda (rc)
-    (let* ((page-title (site-name))
+    (let* ((page (page-number rc))
+           (posts (map with-excerpt
+                       (published-posts rc #:limit home-per-page
+                                           #:offset (* (1- page) home-per-page)
+                                           #:with-body? #t)))
+           (total (published-posts-count rc))
+           (total-pages (max 1 (quotient (+ total (1- home-per-page)) home-per-page)))
+           (page-title (if (= page 1)
+                           (site-name)
+                           (string-append "Page " (number->string page) " · " (site-name))))
            (page-desc (string-append (site-name) ", " (site-tagline)
                                      " Essays on inference engines, programming language theory, compilers and operating systems, and what the next era of software keeps from the last."))
-           (canonical (absolute-url "/"))
-           (posts (published-posts rc #:limit 12))
+           (canonical (home-page-url page))
+           (prev-url (and (> page 1) (home-page-url (1- page))))
+           (next-url (and (< page total-pages) (home-page-url (1+ page))))
+           (page-label (string-append "Page " (number->string page)
+                                      " of " (number->string total-pages)))
            (lead (and (pair? posts) (car posts)))
            (rest (if (pair? posts) (cdr posts) '()))
            (sponsor (sponsor-for rc "home"))
@@ -24,6 +55,9 @@
                                 ("name" . ,(site-name))
                                 ("url" . ,(absolute-url "/"))
                                 ("author" . (("@type" . "Person") ("name" . ,(author-name))))))))
+      ;; Past the last page there is nothing to show; say so rather than
+      ;; rendering an empty home page with a pager on it.
+      (when (and (> page 1) (null? posts)) (not-found!))
       (render "index/index" (the-environment) #:headers (public-cache)))))
 
 (get "/archive"

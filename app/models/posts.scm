@@ -40,6 +40,7 @@
 (export post-columns
         with-tags
         published-posts
+        published-posts-count
         post-by-slug
         post-by-id
         feed-posts
@@ -76,12 +77,18 @@
   (let ((tl (row-ref row "tag_list")))
     (acons "tags" (if (present? tl) (string-split tl #\,) '()) row)))
 
-(define* (published-posts x #:key (limit 50) (offset 0))
+(define* (published-posts x #:key (limit 50) (offset 0) (with-body? #f))
+  "Newest first. WITH-BODY? adds body_html, for pages that print an excerpt."
   (map with-tags
-       (q x (string-append "SELECT " post-columns " FROM posts p
+       (q x (string-append "SELECT " post-columns
+                           (if with-body? ", p.body_html" "")
+                           " FROM posts p
               WHERE p.status = 'published'
               ORDER BY p.published_at DESC LIMIT $1::int OFFSET $2::int")
           limit offset)))
+
+(define (published-posts-count x)
+  (or (qval x "SELECT count(*)::int FROM posts WHERE status = 'published'") 0))
 
 (define* (post-by-slug x slug #:key (drafts? #f))
   (let ((row (q1 x (string-append "SELECT " post-columns ", p.body_html, p.toc_html, p.body_md

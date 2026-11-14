@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <@include shared/head.html.tpl %>
+<% (when prev-url %><link rel="prev" href=<%= (qa prev-url) %>><% ) %>
+<% (when next-url %><link rel="next" href=<%= (qa next-url) %>><% ) %>
 <script type="application/ld+json"><%= extra-ld %></script>
 </head>
 <body>
@@ -36,6 +38,9 @@
 <div class="eyebrow"><%= (h (row-ref lead "date_long")) %><% (for-each (lambda (t) %> &middot; <%= (h t) %><% ) (row-ref lead "tags")) %></div>
 <h1><a href=<%= (qa "/posts/" (row-ref lead "slug")) %>><%= (h (row-ref lead "title")) %></a></h1>
 <% (when (present? (row-ref lead "dek")) %><p class="dek"><%= (h (row-ref lead "dek")) %></p><% ) %>
+<% (when (pair? (row-ref lead "excerpt")) %><div class="excerpt">
+<% (for-each (lambda (p) %><p><%= (h p) %></p><% ) (row-ref lead "excerpt")) %>
+</div><% ) %>
 <div class="meta">
 <a href=<%= (qa "/posts/" (row-ref lead "slug")) %>>Read it</a>
 <span><%= (questions-phrase (row-ref lead "n_questions")) %></span>
@@ -47,10 +52,20 @@
 <div class="body">
 <h2><a href=<%= (qa "/posts/" (row-ref p "slug")) %>><%= (h (row-ref p "title")) %></a></h2>
 <% (when (present? (row-ref p "dek")) %><p><%= (h (row-ref p "dek")) %></p><% ) %>
+<% (when (pair? (row-ref p "excerpt")) %><div class="excerpt">
+<% (for-each (lambda (q) %><p><%= (h q) %></p><% ) (row-ref p "excerpt")) %>
+</div><% ) %>
 <div class="meta"><% (for-each (lambda (t) %><a href=<%= (qa "/tags/" (url-encode t)) %>><%= (h t) %></a> &middot; <% ) (row-ref p "tags")) %><% (when (row-ref p "submitted_by_handle") %>sent in by @<%= (h (row-ref p "submitted_by_handle")) %> &middot; <% ) %><%= (questions-phrase (row-ref p "n_questions")) %></div>
 </div>
 </article>
 <% ) rest) %>
+<% (when (or prev-url next-url) %>
+<nav class="pager" aria-label="Pages">
+<span class="pager-side"><% (when prev-url %><a href=<%= (qa prev-url) %> rel="prev">&larr; Newer</a><% ) %></span>
+<span class="pager-info"><%= (h page-label) %></span>
+<span class="pager-side pager-next"><% (when next-url %><a href=<%= (qa next-url) %> rel="next">Older &rarr;</a><% ) %></span>
+</nav>
+<% ) %>
 <a class="more eyebrow" href="/archive">The full archive</a>
 <% ) (begin %>
 <p class="muted">Nothing is published yet.</p>
