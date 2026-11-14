@@ -20,7 +20,7 @@
 </div>
 </details>
 <div class="field"><label for="body_md">Markdown</label><textarea id="body_md" name="body_md" class="md" spellcheck="true"><%= (h (f "body_md")) %></textarea>
-<p class="hint">GitHub-flavoured Markdown. <code>$x$</code> and <code>$$x$$</code> for math. Fence code with a language (<code>```llvm</code>, <code>```asm</code>, <code>```c</code>, <code>```scheme</code>) for highlighting. Rendered once, when you save.</p></div>
+<p class="hint">GitHub-flavoured Markdown. <code>$x$</code> and <code>$$x$$</code> for math. Fence code with a language (<code>```llvm</code>, <code>```asm</code>, <code>```c</code>, <code>```scheme</code>) for highlighting. Cite with <code>[1]</code> in the text and <code>[1]: source</code> on its own line at the foot; a marker with no entry stays as written. Rendered once, when you save.</p></div>
 <div class="btn-row">
 <button class="btn plain" type="submit" name="action" value="save">Save</button>
 <% (if (equal? (f "status") "published") (begin %><button class="btn plain" type="submit" name="action" value="unpublish">Unpublish</button><button class="btn" type="submit" name="action" value="save">Update</button><% ) (begin %><button class="btn" type="submit" name="action" value="publish">Publish</button><% )) %>

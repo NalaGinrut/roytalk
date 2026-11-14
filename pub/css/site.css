@@ -269,6 +269,11 @@ textarea.md { font-family: var(--mono); font-size: 15px; min-height: 560px; }
 .prose code { font-family: var(--mono); font-size: 0.82em; background: var(--paper-2); padding: 1px 5px; }
 .prose math[display=block] { display: block; margin: 0 0 26px; font-size: 1.2em; overflow-x: auto; }
 .prose .footnotes { font-size: 15px; border-top: 1px solid var(--rule); margin-top: 48px; padding-top: 16px; }
+.prose .footnotes > hr { display: none; }
+.prose .footnotes ol { margin: 0; padding-left: 22px; }
+.prose .footnotes li { margin: 0 0 10px; }
+.prose .footnote-ref { text-decoration: none; font-weight: 600; }
+.prose .footnote-back { margin-left: 8px; color: var(--muted); text-decoration: none; }
 
 /* code: pandoc emits <div class="sourceCode"><pre><code>, spans per line */
 .prose pre { margin: 0 0 26px; padding: 22px 20px; background: var(--code-bg); color: var(--code-ink);

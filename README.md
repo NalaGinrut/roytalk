@@ -62,7 +62,10 @@ and you are the author: the desk is at `/admin`.
 ## Writing
 
 `/admin` → New piece. Markdown with `$x$` / `$$x$$` for math and fenced code
-with a language name for highlighting. Tags decide what a piece is (an essay, a
+with a language name for highlighting. Cite with `[1]` in the prose and the
+source on its own line at the foot (`[1]: Jane Doe, *A Book*, 2020`); the
+numbered list and backlinks are generated on save, and a marker without an
+entry is left as plain text. Tags decide what a piece is (an essay, a
 commentary …). For commentary on an outside piece, fill in the source link and,
 if a reader sent it in, their handle. A published piece joins the next monthly
 digest automatically; nothing is sent for it on its own.
