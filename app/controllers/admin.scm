@@ -7,7 +7,10 @@
 (use-modules (srfi srfi-1)
              (ice-9 match)
              ((artanis runner) #:select (call-with-runner))
+             ((artanis upload) #:select (content-type-is-mfd? get-mfds-op-from-post
+                                         mfd-filename mfd-size))
              (roytalk util) (roytalk settings) (roytalk db) (roytalk web)
+             (roytalk upload)
              (app models posts) (app models submissions) (app models questions)
              (app models accounts) (app models tags) (app models sponsors)
              (app models subscribers) (app models outbox) (app models api_tokens)
@@ -78,6 +81,94 @@
     (let ((form (checked-form rc)))
       (let ((r (render-markdown (form-ref form "body_md" ""))))
         (emit-text (car r) #:type 'text/html #:headers (private-cache))))))
+
+;; ------------------------------------------------------------------ images
+
+(define (upload-error name code)
+  (list (cons "name" (clamp-string (or name "") 200))
+        (cons "error" code)))
+
+(define (upload-error-json code)
+  (list (cons "ok" #f)
+        (cons "files" (vector))
+        (cons "errors" (vector (upload-error "" code)))))
+
+(define (upload-result-json files errors)
+  (list (cons "ok" (if (pair? files) #t #f))
+        (cons "files" (list->vector files))
+        (cons "errors" (list->vector errors))))
+
+(define (upload-csrf-ok? rc mfds-op)
+  ;; The CSRF token arrives as a multipart field, not as urlencoded form params.
+  (let ((mfd (mfd-by-name mfds-op "csrf")))
+    (and mfd
+         (catch #t
+           (lambda () (csrf-ok? rc (list (cons "csrf" (mfd-text rc mfd)))))
+           (lambda args #f)))))
+
+(define (upload-one-file rc mfd)
+  "Store one file part. Returns (file-json . error-json); one of them is #f."
+  (let ((size (mfd-size mfd))
+        (name (mfd-filename mfd)))
+    (cond
+     ((not (and size (> size 0)))
+      (cons #f (upload-error name "empty")))
+     ((> size max-image-bytes)
+      (cons #f (upload-error name "too-large")))
+     (else
+      (let* ((bv (mfd-bytes rc mfd))
+             (kind (image-kind bv)))
+        (if (not kind)
+            (cons #f (upload-error name "unsupported"))
+            (catch #t
+              (lambda ()
+                (call-with-values (lambda () (store-image! bv (cdr kind)))
+                  (lambda (url deduped)
+                    (cons (list (cons "url" url)
+                                (cons "name" (clamp-string name 200))
+                                (cons "mime" (car kind))
+                                (cons "size" size)
+                                (cons "deduped" deduped))
+                          #f))))
+              (lambda args
+                (cons #f (upload-error name "write-failed"))))))))))
+
+(define (all-errors? code errors)
+  (and (pair? errors)
+       (every (lambda (e) (string=? code (assoc-ref e "error"))) errors)))
+
+(post "/admin/upload"
+  (lambda (rc)
+    (the-author rc)
+    (let ((mfds-op (catch #t
+                     (lambda ()
+                       (and (content-type-is-mfd? rc)
+                            (get-mfds-op-from-post rc)))
+                     (lambda args #f))))
+      (cond
+       ((not mfds-op)
+        ;; Not multipart, or malformed: form-params would corrupt binary data,
+        ;; so there is nothing sensible to read here.
+        (emit-json (upload-error-json "bad-request") #:status 400))
+       ((not (upload-csrf-ok? rc mfds-op))
+        (emit-json (upload-error-json "csrf") #:status 403))
+       ((null? (file-mfds mfds-op))
+        (emit-json (upload-error-json "no-files") #:status 400))
+       (else
+        (let loop ((todo (file-mfds mfds-op)) (files '()) (errors '()))
+          (if (null? todo)
+              (let ((files (reverse files)) (errors (reverse errors)))
+                (emit-json
+                 (upload-result-json files errors)
+                 #:status (cond ((pair? files) 200)
+                                ((all-errors? "too-large" errors) 413)
+                                ((all-errors? "unsupported" errors) 415)
+                                ((all-errors? "empty" errors) 400)
+                                (else 500))))
+              (let ((r (upload-one-file rc (car todo))))
+                (loop (cdr todo)
+                      (if (car r) (cons (car r) files) files)
+                      (if (cdr r) (cons (cdr r) errors) errors))))))))))
 
 (define (save-editor-post! rc id form)
   "Insert or update from the editor form. Returns (values id error)."

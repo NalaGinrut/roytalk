@@ -233,11 +233,15 @@ app() {
   # nothing to copy and rsync would refuse to sync a directory onto itself.
   if [ "$(cd "$APP_SRC" && pwd -P)" != "$(cd "$APP_DIR" && pwd -P)" ]; then
     rsync -a --delete --exclude prv/settings.scm --exclude prv/asset-private/ \
-      --exclude log/ --exclude tmp/ --exclude '/.*' "$APP_SRC/" "$APP_DIR/"
+      --exclude log/ --exclude tmp/ --exclude '/.*' \
+      --exclude 'pub/img/upload/' "$APP_SRC/" "$APP_DIR/"
   else
     echo "APP_SRC is APP_DIR ($APP_DIR); the code is already in place"
   fi
   mkdir -p "$APP_DIR"/{log,tmp,prv}
+  # Uploaded images live only on the server; a deploy must neither delete nor
+  # overwrite them. They are backed up with the database.
+  mkdir -p "$APP_DIR/pub/img/upload"
   is_mountpoint "$APP_DIR/prv/asset-private" || mkdir -p "$APP_DIR/prv/asset-private"
   sed -i -e "s/^db.passwd = .*/db.passwd = $DB_PASS/" "$APP_DIR/conf/artanis.conf"
   if [ ! -f "$APP_DIR/prv/settings.scm" ]; then

@@ -99,7 +99,8 @@
       (emit-text
        (string-append
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-        "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n"
+        "<feed xmlns=\"http://www.w3.org/2005/Atom\" xml:base=\""
+        (xml (absolute-url "/")) "\">\n"
         "<title>" (xml (site-name)) "</title>\n"
         "<subtitle>" (xml (site-tagline)) "</subtitle>\n"
         "<link rel=\"self\" href=\"" (xml (absolute-url "/feed/atom")) "\"/>\n"

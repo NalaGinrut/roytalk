@@ -70,6 +70,16 @@ commentary …). For commentary on an outside piece, fill in the source link and
 if a reader sent it in, their handle. A published piece joins the next monthly
 digest automatically; nothing is sent for it on its own.
 
+Images: paste a screenshot or drag a file into the Markdown box, or use
+**Insert image**. PNG, JPEG, GIF and WebP up to 10 MB are stored under
+`pub/img/upload/` as `<sha256>.<ext>` and the reference is inserted at the
+cursor (`![alt](/img/upload/<sha256>.png){#img-ab12cd34}`). Click an image in
+the preview to change its width and alignment or to move its paragraph up and
+down; the settings are written into the Markdown as pandoc attributes
+(`width=420 .img-center`). Uploads are served by nginx with a one-year
+immutable cache, so replacing an image means inserting it again under its new
+content hash. SVG is refused (it can carry script).
+
 ## Configuration
 
 | Where | What |
@@ -284,7 +294,7 @@ everything (`sudo deploy/setup-server.sh --list` prints them):
 | `deps` | build guile-dbi, guile-curl, guile-redis and GNU Artanis |
 | `user` | create the service account and its home (`$APP_DIR`) |
 | `db` | size PostgreSQL, create the role, database and `citext` |
-| `app` | copy the app to `$APP_DIR`, write `prv/settings.scm`, load the schema |
+| `app` | copy the app to `$APP_DIR` (keeping `pub/img/upload/`), write `prv/settings.scm`, load the schema |
 | `services` | install and (re)start the units, the R2 mount and the backup timer |
 
 ```sh
@@ -340,16 +350,25 @@ nginx answers `http` with a 301 (Cloudflare's "Always Use HTTPS" does the same
 at the edge). Public pages send `Cache-Control: s-maxage=60`, so Cloudflare may
 serve them for a minute.
 
-**Treat the VM as disposable.** Free instances can be reclaimed. Everything
-except the database is in this repository.
+**Treat the VM as disposable.** Free instances can be reclaimed. Everything is
+in this repository except the database and uploaded images; both are covered
+by the paired backup below. The `app` deploy stage excludes
+`pub/img/upload/` from `rsync --delete`, so publishing code never removes
+images.
 
 ### Backups
 
 `tools/backup.sh` (nightly, from the `roytalk-backup.timer` user unit) writes
-`prv/asset-private/roytalk/backup/roytalk-<UTC time>.sql.bz2`: plain SQL from
-`pg_dump`, bzip2, not encrypted. Each file is checked (bzip2 and a complete
-dump) before it appears under its final name. `KEEP_DAYS` in the unit prunes
-old ones; the default keeps everything.
+a pair with the same timestamp under `prv/asset-private/roytalk/backup/`:
+`roytalk-<UTC time>.sql.bz2` (plain SQL from `pg_dump`) and
+`roytalk-<UTC time>-uploads.tar.bz2` (the `pub/img/upload/` tree). Both are
+bzip2, not encrypted, and both are checked before they appear under their
+final names (`KEEP_DAYS` prunes them together; the default keeps everything).
+
+`tools/restore.sh FILE.sql.bz2` restores the database, then extracts the
+matching `-uploads.tar.bz2` into `pub/img/upload/`, adding only files that are
+missing. A missing uploads archive is a warning, not an error, so older
+database-only dumps still restore.
 
 `prv/asset-private/` is meant to be an rclone mount of a private R2 bucket, so
 the script only does file operations. Until it is mounted, dumps stay on the

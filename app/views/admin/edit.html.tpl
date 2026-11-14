@@ -19,8 +19,16 @@
 <div class="field" style="flex:0 1 160px"><label for="submitted_by">Sent in by</label><input id="submitted_by" name="submitted_by" type="text" value=<%= (qa submitted) %> placeholder="@handle"></div>
 </div>
 </details>
-<div class="field"><label for="body_md">Markdown</label><textarea id="body_md" name="body_md" class="md" spellcheck="true"><%= (h (f "body_md")) %></textarea>
-<p class="hint">GitHub-flavoured Markdown. <code>$x$</code> and <code>$$x$$</code> for math. Fence code with a language (<code>```llvm</code>, <code>```asm</code>, <code>```c</code>, <code>```scheme</code>) for highlighting. Cite with <code>[1]</code> in the text and <code>[1]: source</code> on its own line at the foot; a marker with no entry stays as written. Rendered once, when you save.</p></div>
+<div class="field">
+<div class="btn-row" style="justify-content:space-between;align-items:center;margin-bottom:6px">
+<label for="body_md">Markdown</label>
+<span><button type="button" class="btn plain small" data-pick-image>Insert image</button><input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></span>
+</div>
+<textarea id="body_md" name="body_md" class="md" spellcheck="true"><%= (h (f "body_md")) %></textarea>
+<p class="hint">GitHub-flavoured Markdown. <code>$x$</code> and <code>$$x$$</code> for math. Fence code with a language (<code>```llvm</code>, <code>```asm</code>, <code>```c</code>, <code>```scheme</code>) for highlighting. Cite with <code>[1]</code> in the text and <code>[1]: source</code> on its own line at the foot; a marker with no entry stays as written. Rendered once, when you save.</p>
+<p class="hint">Paste, drop or pick an image (PNG, JPEG, GIF, WebP; 10&nbsp;MB at most) and it is uploaded and inserted where the cursor was. Click an image in the preview to set its width and alignment, or move its paragraph up and down.</p>
+<p class="hint upload-status" id="upload-status" role="status" aria-live="polite"></p>
+</div>
 <div class="btn-row">
 <button class="btn plain" type="submit" name="action" value="save">Save</button>
 <% (if (equal? (f "status") "published") (begin %><button class="btn plain" type="submit" name="action" value="unpublish">Unpublish</button><button class="btn" type="submit" name="action" value="save">Update</button><% ) (begin %><button class="btn" type="submit" name="action" value="publish">Publish</button><% )) %>
@@ -28,6 +36,19 @@
 </div>
 <div class="right">
 <div class="btn-row" style="justify-content:space-between;margin-bottom:10px"><span class="label-muted">Preview</span><button type="button" class="btn plain small" data-preview>Refresh preview</button></div>
+<div class="image-tools" id="image-tools" hidden>
+<span class="label-muted">Image</span>
+<button type="button" class="btn plain small" data-img-align="left">Left</button>
+<button type="button" class="btn plain small" data-img-align="center">Center</button>
+<button type="button" class="btn plain small" data-img-align="right">Right</button>
+<button type="button" class="btn plain small" data-img-move="up">Up</button>
+<button type="button" class="btn plain small" data-img-move="down">Down</button>
+<label for="img-width" class="label-muted">Width</label>
+<input type="range" id="img-width" min="10" max="100" step="1" value="100">
+<output id="img-width-out" for="img-width">100%</output>
+<button type="button" class="btn plain small" data-img-close>Close</button>
+<p class="hint" id="image-tools-status">Moves the image paragraph.</p>
+</div>
 <div class="preview"><div class="prose" id="preview"><%= (f "body_html") %></div></div>
 </div>
 </form>

@@ -1,5 +1,6 @@
 # ~/.config/systemd/user/roytalk-backup.service
-# Dumps the roytalk database to <app>/prv/asset-private/roytalk/backup/*.sql.bz2
+# Dumps the roytalk database and uploaded images to
+# <app>/prv/asset-private/roytalk/backup/*.sql.bz2 and ...-uploads.tar.bz2
 # Run by roytalk-backup.timer; by hand: systemctl --user start roytalk-backup
 #
 # The user running it must be able to read <app>/conf/artanis.conf (the DB

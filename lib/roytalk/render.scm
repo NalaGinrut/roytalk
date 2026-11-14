@@ -31,7 +31,7 @@
 (define (run-pandoc md)
   (let* ((pandoc (setting 'pandoc "pandoc"))
          (args (list pandoc
-                     "--from=gfm+tex_math_dollars+footnotes"
+                     "--from=gfm+tex_math_dollars+footnotes+attributes"
                      "--to=html5"
                      "--mathml"
                      "--toc" "--toc-depth=2"

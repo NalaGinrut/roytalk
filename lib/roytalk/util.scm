@@ -104,8 +104,9 @@ Every value that did not come from our own templates goes through this."
   (bv->hex (random-bytes nbytes)))
 
 (define (sha256-hex s)
-  "SHA-256 of a string, as lowercase hex. Uses coreutils' sha256sum-compatible
-NSS binding from Artanis when loaded inside the server, so it is resolved lazily."
+  "SHA-256 of a string or bytevector, as lowercase hex. Uses coreutils'
+sha256sum-compatible NSS binding from Artanis when loaded inside the server,
+so it is resolved lazily."
   ((module-ref (resolve-interface '(artanis security hash)) 'string->sha-256) s))
 
 (define (constant-time=? a b)

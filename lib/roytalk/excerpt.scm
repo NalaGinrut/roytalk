@@ -44,6 +44,8 @@
 
 (define (style-inline p)
   (let* ((p (inline-math->tex p))
+         ;; The letter is text: images stay on the web.
+         (p (regexp-substitute/global #f "<img\\b[^>]*>" p 'pre "" 'post))
          (p (regexp-substitute/global #f "<a href=" p 'pre "<a style=\"color:#1E3F30;\" href=" 'post))
          (p (regexp-substitute/global #f "<code>" p 'pre
                                       "<code style=\"font-family:Menlo,Consolas,monospace;font-size:14px;background:#EAE6DA;padding:1px 4px;\">"
@@ -92,10 +94,14 @@ The first paragraph is always kept. Returns (html . text)."
            ((and (string-prefix? "<p>" line) (string-suffix? "</p>" line)
                  (not (string-contains line "<math display=\"block\"")))
             (let* ((inner (substring line 3 (- (string-length line) 4)))
-                   (n (string-count-words (strip-tags inner))))
-              (if (and (pair? paras) (> (+ words n) max-words))
-                  (done)
-                  (lp (cdr lines) (cons inner paras) (+ words n)))))
+                   (plain (strip-tags (inline-math->tex inner))))
+              (if (string-null? (string-trim-both plain))
+                  ;; An image-only paragraph would become an empty opening.
+                  (lp (cdr lines) paras words)
+                  (let ((n (string-count-words plain)))
+                    (if (and (pair? paras) (> (+ words n) max-words))
+                        (done)
+                        (lp (cdr lines) (cons inner paras) (+ words n)))))))
            ;; A leading heading, figure or formula is skipped: the opening
            ;; starts at the first real paragraph, where the prose does.
            ((null? paras) (lp (cdr lines) paras words))

@@ -266,6 +266,8 @@ textarea.md { font-family: var(--mono); font-size: 15px; min-height: 560px; }
 .prose th, .prose td { border-bottom: 1px solid var(--rule); padding: 8px 14px 8px 0; text-align: left; }
 .prose th { border-bottom-color: var(--ink); }
 .prose img { display: block; margin: 0 0 26px; }
+.prose img.img-center { margin-left: auto; margin-right: auto; }
+.prose img.img-right { margin-left: auto; margin-right: 0; }
 .prose code { font-family: var(--mono); font-size: 0.82em; background: var(--paper-2); padding: 1px 5px; }
 .prose math[display=block] { display: block; margin: 0 0 26px; font-size: 1.2em; overflow-x: auto; }
 .prose .footnotes { font-size: 15px; border-top: 1px solid var(--rule); margin-top: 48px; padding-top: 16px; }
@@ -387,6 +389,14 @@ mark.q-pending { background: var(--mark); box-shadow: 0 0 0 3px var(--mark); col
 .editor .right { flex: 1 1 420px; min-width: 0; }
 .editor .preview { border: 1px solid var(--rule); padding: 24px; background: var(--paper-in); max-height: 1200px; overflow: auto; }
 .editor .preview .prose > * { max-width: none; }
+.editor .preview img { cursor: pointer; }
+.editor .preview img.is-selected { outline: 2px solid var(--green); outline-offset: 3px; }
+textarea.md.drop-target { outline: 2px dashed var(--green); outline-offset: 2px; }
+.image-tools { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--rule); background: var(--paper-2); margin-bottom: 12px; font-size: 13px; }
+.image-tools[hidden] { display: none; }
+.image-tools input[type="range"] { width: 120px; }
+.image-tools .hint { flex-basis: 100%; margin: 0; }
+.upload-status { min-height: 1em; }
 .pill { display: inline-block; padding: 0 8px; border: 1px solid var(--rule); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
 .pill.on { border-color: var(--green); color: var(--green); }
 .admin-q-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
